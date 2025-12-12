@@ -73,6 +73,7 @@ class ConverterApp:
         # File picker for folder selection
         self.folder_picker = ft.FilePicker(on_result=self.on_folder_picked)
         page.overlay.append(self.folder_picker)
+        page.update()
         
         # Build UI
         self.build_ui()
@@ -219,20 +220,36 @@ class ConverterApp:
         )
     
     def browse_folder(self, e):
-        self.folder_picker.pick_files(
-            dialog_title="Video-Datei auswählen",
-            allowed_extensions=["mkv", "mp4"],
-            allow_multiple=False
-        )
+        # Platform-specific folder selection
+        if platform.system() == "Darwin":
+            # macOS: Use native AppleScript dialog
+            try:
+                result = subprocess.run(
+                    ["osascript", "-e", 'POSIX path of (choose folder with prompt "Video-Ordner auswählen")'],
+                    capture_output=True,
+                    text=True
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    folder_path = result.stdout.strip().rstrip('/')
+                    self.folder_path.current.value = folder_path
+                    self.page.update()
+                    self.log(f"Ordner ausgewählt: {folder_path}", "#22c55e")
+                else:
+                    self.log("Auswahl abgebrochen", "#f97316")
+            except Exception as ex:
+                self.log(f"Fehler beim Öffnen des Dialogs: {ex}", "#ef4444")
+        else:
+            # Windows/Linux: Use Flet FilePicker
+            self.folder_picker.get_directory_path(
+                dialog_title="Video-Ordner auswählen"
+            )
     
     def on_folder_picked(self, e: ft.FilePickerResultEvent):
-        if e.files and len(e.files) > 0:
-            # Get the parent folder of the selected file
-            file_path = e.files[0].path
-            folder_path = os.path.dirname(file_path)
-            self.folder_path.current.value = folder_path
+        # This is only used on Windows/Linux
+        if e.path:
+            self.folder_path.current.value = e.path
             self.page.update()
-            self.log(f"Ordner ausgewählt: {folder_path}", "#22c55e")
+            self.log(f"Ordner ausgewählt: {e.path}", "#22c55e")
         else:
             self.log("Auswahl abgebrochen", "#f97316")
     
