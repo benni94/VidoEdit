@@ -14,7 +14,7 @@ A modern, cross-platform desktop application for converting H.266/VVC video file
 🔄 **Multiple Codecs** - Support for H.265 (HEVC) and H.264 (AVC)  
 💾 **Flexible Output** - Replace originals or create new files  
 🌍 **Cross-platform** - Works on macOS, Windows, and Linux  
-🎨 **Native Dialogs** - Platform-native folder picker dialogs  
+🎨 **Native Dialogs** - Platform-native folder picker dialogs
 
 ## Screenshots
 
@@ -30,11 +30,13 @@ A modern, cross-platform desktop application for converting H.266/VVC video file
 ### 1. Install FFmpeg
 
 **macOS (using Homebrew):**
+
 ```bash
 brew install ffmpeg
 ```
 
 **Windows (using Chocolatey):**
+
 ```bash
 choco install ffmpeg
 ```
@@ -43,6 +45,7 @@ choco install ffmpeg
 Download from [ffmpeg.org](https://ffmpeg.org/download.html) and add to PATH
 
 **Linux (Ubuntu/Debian):**
+
 ```bash
 sudo apt update
 sudo apt install ffmpeg
@@ -66,15 +69,18 @@ On first run, the application will automatically prompt you to install Flet if i
 ## Usage
 
 1. **Select Folder**
+
    - Click "Durchsuchen" to open a folder picker
    - Or manually paste the folder path into the text field
    - On macOS: Right-click folder → Hold Option → "Copy as Pathname"
 
 2. **Choose Codec**
+
    - Select H.265 (HEVC) for better compression
    - Select H.264 (AVC) for wider compatibility
 
 3. **Optional Settings**
+
    - Check "Originaldateien ersetzen" to replace original files
    - Leave unchecked to create new files with codec suffix
 
@@ -91,6 +97,7 @@ On first run, the application will automatically prompt you to install Flet if i
 ## Configuration
 
 The converter uses the following FFmpeg settings:
+
 - **Preset:** medium (balance between speed and quality)
 - **CRF:** 23 (constant rate factor for quality)
 - **Audio:** copy (no re-encoding)
@@ -98,11 +105,13 @@ The converter uses the following FFmpeg settings:
 ## Technical Details
 
 ### Architecture
+
 - **GUI Framework:** Flet (Flutter-based Python framework)
 - **Video Processing:** FFmpeg via subprocess
 - **Platform Detection:** Automatic OS detection for native dialogs
 
 ### File Structure
+
 ```
 H266VideoConverter/
 ├── converter.py          # Main application
@@ -113,15 +122,18 @@ H266VideoConverter/
 ## Troubleshooting
 
 ### "FFmpeg nicht gefunden"
+
 - Ensure FFmpeg is installed and available in your system PATH
 - Test by running `ffmpeg -version` in terminal
 
 ### Folder picker doesn't open
+
 - On macOS: AppleScript is used (built-in)
 - On Windows: PowerShell is used (built-in)
 - On Linux: Manually paste folder path
 
 ### Conversion fails
+
 - Check that input files are valid video files
 - Ensure you have write permissions in the target folder
 - Check FFmpeg logs in the application log area
@@ -129,16 +141,19 @@ H266VideoConverter/
 ## Development
 
 ### Dependencies
+
 ```bash
 pip install flet
 ```
 
 ### Running from Source
+
 ```bash
 python3 converter.py
 ```
 
 ### Building Standalone Executable
+
 ```bash
 flet pack converter.py --name H266VideoConverter
 ```
@@ -176,11 +191,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Author
 
 **Your Name**
-- GitHub: [@yourusername](https://github.com/yourusername)
+
+- GitHub: [@benni94](https://github.com/benni94)
 
 ## Support
 
-If you encounter any issues or have questions, please [open an issue](https://github.com/yourusername/H266VideoConverter/issues) on GitHub.
+If you encounter any issues or have questions, please [open an issue](https://github.com/benni94/H266VideoConverter/issues) on GitHub.
 
 ---
 
