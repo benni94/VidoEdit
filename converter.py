@@ -4,6 +4,8 @@ import subprocess
 import sys
 import platform
 import time
+import threading
+import re
 
 # Check if flet is installed, if not ask user to install
 try:
@@ -262,12 +264,42 @@ class ConverterApp:
         self.log_column.current.controls.append(log_entry)
         self.page.update()
     
-    def convert_file(self, input_file):
+    def get_video_duration(self, input_file):
+        """Get video duration in seconds using ffprobe"""
+        try:
+            cmd = [
+                "ffprobe", "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                input_file
+            ]
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode == 0 and result.stdout.strip():
+                return float(result.stdout.strip())
+        except:
+            pass
+        return None
+    
+    def parse_ffmpeg_time(self, time_str):
+        """Parse FFmpeg time string (HH:MM:SS.ms) to seconds"""
+        try:
+            parts = time_str.split(':')
+            hours = int(parts[0])
+            minutes = int(parts[1])
+            seconds = float(parts[2])
+            return hours * 3600 + minutes * 60 + seconds
+        except:
+            return 0
+    
+    def convert_file(self, input_file, file_index, total_files):
         replace = self.replace_checkbox.current.value
         codec = self.codec_dropdown.current.value
         
         tmp_file = input_file + ".tmp" if replace else os.path.splitext(input_file)[0] + f"_{codec}.mkv"
         vcodec = "libx265" if codec == "h265" else "libx264"
+        
+        # Get video duration for progress calculation
+        duration = self.get_video_duration(input_file)
         
         cmd = [
             "ffmpeg", "-i", input_file,
@@ -280,16 +312,49 @@ class ConverterApp:
         
         self.log(f"Konvertiere: {os.path.basename(input_file)}", "#6366f1")
         try:
-            subprocess.run(cmd, check=True, capture_output=True)
-            if replace:
-                os.replace(tmp_file, input_file)
-                self.log(f"✓ Original ersetzt: {os.path.basename(input_file)}", "#22c55e")
+            # Run FFmpeg with real-time progress parsing
+            process = subprocess.Popen(
+                cmd,
+                stderr=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                universal_newlines=True
+            )
+            
+            # Parse FFmpeg output for progress
+            time_pattern = re.compile(r'time=(\d+:\d+:\d+\.\d+)')
+            
+            while True:
+                line = process.stderr.readline()
+                if not line and process.poll() is not None:
+                    break
+                
+                # Look for time= in FFmpeg output
+                match = time_pattern.search(line)
+                if match and duration:
+                    current_time = self.parse_ffmpeg_time(match.group(1))
+                    file_progress = min(current_time / duration, 1.0)
+                    
+                    # Calculate overall progress: completed files + current file progress
+                    overall_progress = ((file_index - 1) + file_progress) / total_files
+                    self.progress_bar.current.value = overall_progress
+                    
+                    # Show percentage for current file
+                    percent = int(file_progress * 100)
+                    self.progress_text.current.value = f"Datei {file_index}/{total_files}: {os.path.basename(input_file)} ({percent}%)"
+                    self.page.update()
+            
+            # Check if FFmpeg succeeded
+            if process.returncode == 0:
+                if replace:
+                    os.replace(tmp_file, input_file)
+                    self.log(f"✓ Original ersetzt: {os.path.basename(input_file)}", "#22c55e")
+                else:
+                    self.log(f"✓ Gespeichert als: {os.path.basename(tmp_file)}", "#22c55e")
             else:
-                self.log(f"✓ Gespeichert als: {os.path.basename(tmp_file)}", "#22c55e")
-        except subprocess.CalledProcessError as ex:
-            self.log(f"✗ Fehler bei: {os.path.basename(input_file)}", "#ef4444")
-            if replace and os.path.exists(tmp_file):
-                os.remove(tmp_file)
+                self.log(f"✗ Fehler bei: {os.path.basename(input_file)}", "#ef4444")
+                if replace and os.path.exists(tmp_file):
+                    os.remove(tmp_file)
+                    
         except FileNotFoundError:
             self.log("✗ FFmpeg nicht gefunden! Bitte installiere FFmpeg.", "#ef4444")
     
@@ -318,6 +383,10 @@ class ConverterApp:
         self.progress_text.current.color = "#6366f1"
         self.page.update()
         
+        # Run conversion in a separate thread to keep UI responsive
+        threading.Thread(target=self._run_conversion, args=(folder,), daemon=True).start()
+    
+    def _run_conversion(self, folder):
         # Collect all video files first
         video_files = []
         for root_dir, dirs, files in os.walk(folder):
@@ -341,12 +410,7 @@ class ConverterApp:
         
         # Convert each file with progress updates
         for index, file_path in enumerate(video_files, 1):
-            progress = index / total_files
-            self.progress_bar.current.value = progress
-            self.progress_text.current.value = f"Konvertiere {index} von {total_files} Dateien..."
-            self.page.update()
-            
-            self.convert_file(file_path)
+            self.convert_file(file_path, index, total_files)
         
         # Completion
         self.progress_bar.current.value = 1.0
