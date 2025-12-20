@@ -81,7 +81,12 @@ def encode_file(input_file):
     )
 
     mode = mode_var.get()
-    preset = PRESETS[preset_var.get()]
+    preset_key = preset_var.get()
+    preset = PRESETS.get(preset_key)
+    if preset is None:
+        preset_key = next(iter(PRESETS))
+        preset_var.set(preset_key)
+        preset = PRESETS[preset_key]
 
     cmd = [
         "ffmpeg", "-y",
@@ -157,8 +162,12 @@ def worker():
 
         file = task_queue.get()
         ui_queue.put(("status", f"Encoding: {Path(file).name}"))
-        encode_file(file)
-        task_queue.task_done()
+        try:
+            encode_file(file)
+        except Exception as ex:
+            ui_queue.put(("status", f"Error: {ex}"))
+        finally:
+            task_queue.task_done()
 
     ui_queue.put(("idle",))
     cancel_requested = False
@@ -230,7 +239,7 @@ root = tk.Tk()
 root.title("GPU Movie Compressor Pro")
 
 mode_var = tk.StringVar(value="CRF")
-preset_var = tk.StringVar(value="Film")
+preset_var = tk.StringVar(value=next(iter(PRESETS)))
 target_size = tk.StringVar(value="5")
 
 frame = ttk.Frame(root, padding=10)
@@ -258,7 +267,7 @@ for p in PRESETS:
             value=p
         ).pack(anchor="w")
 
-progress_bar = ttk.Progressbar(frame, length=420)
+progress_bar = ttk.Progressbar(frame, length=420, maximum=100)
 progress_bar.pack(pady=10)
 
 eta_label = ttk.Label(frame, text="ETA: --")

@@ -90,6 +90,9 @@ class ConverterApp:
         self._compress_cancel_requested = False
         self._compress_current_process = None
         self._compress_encoder = self.detect_gpu_encoder()
+
+        self._ui_queue: "queue.Queue[tuple]" = queue.Queue()
+        self._ui_poller_started = False
         
         # File picker for folder selection
         self.folder_picker = ft.FilePicker(on_result=self.on_folder_picked)
@@ -120,6 +123,7 @@ class ConverterApp:
         )
 
         self._start_compress_ui_poller()
+        self._start_ui_poller()
 
     def _build_convert_tab(self):
         folder_input_area = ft.Container(
@@ -489,6 +493,10 @@ class ConverterApp:
             self.page.update()
     
     def log(self, message, color=None):
+        if threading.current_thread() is not threading.main_thread():
+            self._ui_queue.put(("log", message, color))
+            return
+
         log_entry = ft.Text(
             message,
             size=12,
@@ -693,87 +701,159 @@ class ConverterApp:
                 time.sleep(0.1)
 
         threading.Thread(target=poll_loop, daemon=True).start()
-    
+
+    def _start_ui_poller(self):
+        if self._ui_poller_started:
+            return
+        self._ui_poller_started = True
+
+        def poll_loop():
+            while True:
+                updated = False
+                try:
+                    while True:
+                        msg = self._ui_queue.get_nowait()
+                        if msg[0] == "log":
+                            _, message, color = msg
+                            log_entry = ft.Text(
+                                message,
+                                size=12,
+                                color=color if color else "#a6adc8",
+                            )
+                            self.log_column.current.controls.append(log_entry)
+                            updated = True
+
+                        elif msg[0] == "convert_progress":
+                            _, value, text = msg
+                            self.progress_bar.current.value = value
+                            self.progress_text.current.value = text
+                            updated = True
+
+                        elif msg[0] == "convert_visibility":
+                            _, visible = msg
+                            self.progress_bar.current.visible = visible
+                            updated = True
+
+                        elif msg[0] == "convert_text_color":
+                            _, color = msg
+                            self.progress_text.current.color = color
+                            updated = True
+
+                        elif msg[0] == "convert_done":
+                            _, value, text, color = msg
+                            self.progress_bar.current.value = value
+                            self.progress_text.current.value = text
+                            self.progress_text.current.color = color
+                            updated = True
+
+                        elif msg[0] == "convert_enable_ui":
+                            self.start_button_ref.current.disabled = False
+                            self.browse_button_ref.current.disabled = False
+                            self.folder_path.current.disabled = False
+                            self.codec_dropdown.current.disabled = False
+                            self.replace_checkbox.current.disabled = False
+                            updated = True
+
+                        elif msg[0] == "convert_disable_ui":
+                            self.start_button_ref.current.disabled = True
+                            self.browse_button_ref.current.disabled = True
+                            self.folder_path.current.disabled = True
+                            self.codec_dropdown.current.disabled = True
+                            self.replace_checkbox.current.disabled = True
+                            updated = True
+
+                        elif msg[0] == "clear_log":
+                            self.log_column.current.controls.clear()
+                            updated = True
+
+                except queue.Empty:
+                    pass
+
+                if updated:
+                    try:
+                        self.page.update()
+                    except Exception:
+                        pass
+
+                time.sleep(0.05)
+
+        threading.Thread(target=poll_loop, daemon=True).start()
+
     def get_video_duration(self, input_file):
-        """Get video duration in seconds using ffprobe"""
         try:
             cmd = [
                 "ffprobe", "-v", "error",
                 "-show_entries", "format=duration",
                 "-of", "default=noprint_wrappers=1:nokey=1",
-                input_file
+                input_file,
             ]
             result = subprocess.run(cmd, capture_output=True, text=True)
             if result.returncode == 0 and result.stdout.strip():
                 return float(result.stdout.strip())
-        except:
+        except Exception:
             pass
         return None
-    
+
     def parse_ffmpeg_time(self, time_str):
-        """Parse FFmpeg time string (HH:MM:SS.ms) to seconds"""
         try:
-            parts = time_str.split(':')
+            parts = time_str.split(":")
             hours = int(parts[0])
             minutes = int(parts[1])
             seconds = float(parts[2])
             return hours * 3600 + minutes * 60 + seconds
-        except:
+        except Exception:
             return 0
-    
+
     def convert_file(self, input_file, file_index, total_files):
         replace = self.replace_checkbox.current.value
         codec = self.codec_dropdown.current.value
-        
+
         tmp_file = input_file + ".tmp" if replace else os.path.splitext(input_file)[0] + f"_{codec}.mkv"
         vcodec = "libx265" if codec == "h265" else "libx264"
-        
-        # Get video duration for progress calculation
+
         duration = self.get_video_duration(input_file)
-        
+
         cmd = [
             "ffmpeg", "-i", input_file,
             "-c:v", vcodec,
             "-preset", "medium",
             "-crf", "23",
             "-c:a", "copy",
-            "-y", tmp_file
+            "-y", tmp_file,
         ]
-        
+
         self.log(f"Konvertiere: {os.path.basename(input_file)}", "#6366f1")
         try:
-            # Run FFmpeg with real-time progress parsing
             process = subprocess.Popen(
                 cmd,
                 stderr=subprocess.PIPE,
                 stdout=subprocess.PIPE,
-                universal_newlines=True
+                universal_newlines=True,
             )
-            
-            # Parse FFmpeg output for progress
-            time_pattern = re.compile(r'time=(\d+:\d+:\d+\.\d+)')
-            
+
+            time_pattern = re.compile(r"time=(\d+:\d+:\d+\.\d+)")
+
             while True:
+                if process.stderr is None:
+                    break
+
                 line = process.stderr.readline()
                 if not line and process.poll() is not None:
                     break
-                
-                # Look for time= in FFmpeg output
+
                 match = time_pattern.search(line)
                 if match and duration:
                     current_time = self.parse_ffmpeg_time(match.group(1))
                     file_progress = min(current_time / duration, 1.0)
-                    
-                    # Calculate overall progress: completed files + current file progress
                     overall_progress = ((file_index - 1) + file_progress) / total_files
-                    self.progress_bar.current.value = overall_progress
-                    
-                    # Show percentage for current file
+
                     percent = int(file_progress * 100)
-                    self.progress_text.current.value = f"Datei {file_index}/{total_files}: {os.path.basename(input_file)} ({percent}%)"
-                    self.page.update()
-            
-            # Check if FFmpeg succeeded
+                    self._ui_queue.put((
+                        "convert_progress",
+                        overall_progress,
+                        f"Datei {file_index}/{total_files}: {os.path.basename(input_file)} ({percent}%)",
+                    ))
+
             if process.returncode == 0:
                 if replace:
                     os.replace(tmp_file, input_file)
@@ -784,77 +864,53 @@ class ConverterApp:
                 self.log(f"✗ Fehler bei: {os.path.basename(input_file)}", "#ef4444")
                 if replace and os.path.exists(tmp_file):
                     os.remove(tmp_file)
-                    
+
         except FileNotFoundError:
             self.log("✗ FFmpeg nicht gefunden! Bitte installiere FFmpeg.", "#ef4444")
-    
+
     def start_conversion(self, e):
         folder = self.folder_path.current.value
-        
+
         if not folder or not os.path.isdir(folder):
             self.log("✗ Bitte wähle einen gültigen Ordner aus.", "#ef4444")
             return
-        
-        # Disable UI elements during conversion
-        self.start_button_ref.current.disabled = True
-        self.browse_button_ref.current.disabled = True
-        self.folder_path.current.disabled = True
-        self.codec_dropdown.current.disabled = True
-        self.replace_checkbox.current.disabled = True
-        self.page.update()
-        
-        # Clear log
-        self.log_column.current.controls.clear()
-        self.log("=== Konvertierung gestartet ===", "#6366f1")
-        
-        # Show progress bar
-        self.progress_bar.current.visible = True
-        self.progress_bar.current.value = 0
-        self.progress_text.current.color = "#6366f1"
-        self.page.update()
-        
-        # Run conversion in a separate thread to keep UI responsive
+
+        self._ui_queue.put(("convert_disable_ui",))
+        self._ui_queue.put(("clear_log",))
+        self._ui_queue.put(("log", "=== Konvertierung gestartet ===", "#6366f1"))
+        self._ui_queue.put(("convert_visibility", True))
+        self._ui_queue.put(("convert_progress", 0, "Bereit"))
+        self._ui_queue.put(("convert_text_color", "#6366f1"))
+
         threading.Thread(target=self._run_conversion, args=(folder,), daemon=True).start()
-    
+
     def _run_conversion(self, folder):
-        # Collect all video files first
         video_files = []
         for root_dir, dirs, files in os.walk(folder):
             for f in files:
                 if f.lower().endswith((".mkv", ".mp4")):
                     video_files.append(os.path.join(root_dir, f))
-        
+
         total_files = len(video_files)
-        
+
         if total_files == 0:
-            self.log("Keine Video-Dateien (.mkv, .mp4) gefunden.", "#f97316")
-            self.progress_text.current.value = "Keine Dateien gefunden"
-            self.progress_bar.current.visible = False
-            self.start_button_ref.current.disabled = False
-            self.browse_button_ref.current.disabled = False
-            self.folder_path.current.disabled = False
-            self.codec_dropdown.current.disabled = False
-            self.replace_checkbox.current.disabled = False
-            self.page.update()
+            self._ui_queue.put(("log", "Keine Video-Dateien (.mkv, .mp4) gefunden.", "#f97316"))
+            self._ui_queue.put(("convert_done", 0, "Keine Dateien gefunden", "#f97316"))
+            self._ui_queue.put(("convert_visibility", False))
+            self._ui_queue.put(("convert_enable_ui",))
             return
-        
-        # Convert each file with progress updates
+
         for index, file_path in enumerate(video_files, 1):
             self.convert_file(file_path, index, total_files)
-        
-        # Completion
-        self.progress_bar.current.value = 1.0
-        self.progress_text.current.value = f"✓ Fertig! {total_files} Dateien konvertiert"
-        self.progress_text.current.color = "#22c55e"
-        self.log(f"\n=== Konvertierung abgeschlossen! ({total_files} Dateien) ===", "#22c55e")
-        
-        # Re-enable UI
-        self.start_button_ref.current.disabled = False
-        self.browse_button_ref.current.disabled = False
-        self.folder_path.current.disabled = False
-        self.codec_dropdown.current.disabled = False
-        self.replace_checkbox.current.disabled = False
-        self.page.update()
+
+        self._ui_queue.put((
+            "convert_done",
+            1.0,
+            f"✓ Fertig! {total_files} Dateien konvertiert",
+            "#22c55e",
+        ))
+        self._ui_queue.put(("log", f"\n=== Konvertierung abgeschlossen! ({total_files} Dateien) ===", "#22c55e"))
+        self._ui_queue.put(("convert_enable_ui",))
 
 
 def main(page: ft.Page):
