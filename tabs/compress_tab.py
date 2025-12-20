@@ -35,7 +35,7 @@ class CompressTab:
         self.preset_dropdown = ft.Ref[ft.Dropdown]()
         self.target_size = ft.Ref[ft.TextField]()
         self.progress_bar = ft.Ref[ft.ProgressBar]()
-        self.eta_text = ft.Ref[ft.Text]()
+        self.progress_text = ft.Ref[ft.Text]()
         self.status_text = ft.Ref[ft.Text]()
         self.start_button_ref = ft.Ref[ft.ElevatedButton]()
         self.cancel_button_ref = ft.Ref[ft.ElevatedButton]()
@@ -145,6 +145,13 @@ class CompressTab:
 
         progress_section = ft.Column(
             [
+                ft.Text(
+                    ref=self.progress_text,
+                    value="Idle",
+                    size=14,
+                    weight=ft.FontWeight.BOLD,
+                    color="#6366f1",
+                ),
                 ft.ProgressBar(
                     ref=self.progress_bar,
                     value=0,
@@ -153,13 +160,7 @@ class CompressTab:
                     color="#6366f1",
                     bgcolor="#313244",
                 ),
-                ft.Row(
-                    [
-                        ft.Text(ref=self.eta_text, value="ETA: --", color="#a6adc8"),
-                        ft.Text(ref=self.status_text, value="Idle", color="#a6adc8"),
-                    ],
-                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                )
+                ft.Text(ref=self.status_text, value="Idle", color="#a6adc8"),
             ],
             spacing=6,
         )
@@ -322,7 +323,7 @@ class CompressTab:
         self._task_queue = queue.Queue()
         self.queue_list.current.controls.clear()
         self.progress_bar.current.value = 0
-        self.eta_text.current.value = "ETA: --"
+        self.progress_text.current.value = "Idle"
         self.status_text.current.value = "Idle"
         self.page.update()
 
@@ -362,6 +363,7 @@ class CompressTab:
         self._cancel_requested = False
         self.start_button_ref.current.visible = False
         self.cancel_button_ref.current.visible = True
+        self.progress_text.current.value = "Starting..."
         self.status_text.current.value = "Starting..."
         self.page.update()
 
@@ -451,8 +453,7 @@ class CompressTab:
                 progress = min((current_sec / duration) * 100.0, 100.0) if duration > 0 else 0
 
                 elapsed = time.time() - start
-                eta = int((elapsed / current_sec) * (duration - current_sec)) if current_sec > 0 else 0
-                self._ui_queue.put(("progress", progress, eta))
+                self._ui_queue.put(("progress", progress))
 
         self._ui_queue.put(("done",))
 
@@ -464,19 +465,20 @@ class CompressTab:
                     while True:
                         msg = self._ui_queue.get_nowait()
                         if msg[0] == "progress":
-                            _, prog, eta = msg
+                            _, prog = msg
                             self.progress_bar.current.value = prog / 100.0
-                            self.eta_text.current.value = f"ETA: {eta}s"
+                            self.progress_text.current.value = f"Compressing... ({int(prog)}%)"
                             updated = True
                         elif msg[0] == "status":
                             self.status_text.current.value = msg[1]
                             updated = True
                         elif msg[0] == "done":
                             self.progress_bar.current.value = 0
-                            self.eta_text.current.value = "ETA: --"
+                            self.progress_text.current.value = "Done"
                             updated = True
                         elif msg[0] == "idle":
                             self.status_text.current.value = "Idle"
+                            self.progress_text.current.value = "Idle"
                             self.start_button_ref.current.visible = True
                             self.cancel_button_ref.current.visible = False
                             self.queue_list.current.controls.clear()
