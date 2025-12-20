@@ -65,15 +65,18 @@ class ConverterApp:
         )
         page.bgcolor = "#11111b"
         
-        # Variables
-        self.folder_path = ft.Ref[ft.TextField]()
+        # Variables - Convert tab
+        self.convert_queue_list = ft.Ref[ft.ListView]()
         self.codec_dropdown = ft.Ref[ft.Dropdown]()
         self.replace_checkbox = ft.Ref[ft.Checkbox]()
         self.log_column = ft.Ref[ft.Column]()
         self.progress_bar = ft.Ref[ft.ProgressBar]()
         self.progress_text = ft.Ref[ft.Text]()
         self.start_button_ref = ft.Ref[ft.ElevatedButton]()
-        self.browse_button_ref = ft.Ref[ft.ElevatedButton]()
+        self.cancel_button_ref = ft.Ref[ft.ElevatedButton]()
+        self._convert_task_queue: "queue.Queue[str]" = queue.Queue()
+        self._convert_cancel_requested = False
+        self._convert_current_process = None
 
         self.compress_queue_list = ft.Ref[ft.ListView]()
         self.compress_mode_radio = ft.Ref[ft.RadioGroup]()
@@ -94,11 +97,13 @@ class ConverterApp:
         self._ui_queue: "queue.Queue[tuple]" = queue.Queue()
         self._ui_poller_started = False
         
-        # File picker for folder selection
-        self.folder_picker = ft.FilePicker(on_result=self.on_folder_picked)
+        # File pickers (used on Windows/Linux)
+        self.convert_files_picker = ft.FilePicker(on_result=self.on_convert_files_picked)
+        self.convert_folder_picker = ft.FilePicker(on_result=self.on_convert_folder_picked)
         self.compress_files_picker = ft.FilePicker(on_result=self.on_compress_files_picked)
         self.compress_folder_picker = ft.FilePicker(on_result=self.on_compress_folder_picked)
-        page.overlay.append(self.folder_picker)
+        page.overlay.append(self.convert_files_picker)
+        page.overlay.append(self.convert_folder_picker)
         page.overlay.append(self.compress_files_picker)
         page.overlay.append(self.compress_folder_picker)
         page.update()
@@ -126,44 +131,42 @@ class ConverterApp:
         self._start_ui_poller()
 
     def _build_convert_tab(self):
-        folder_input_area = ft.Container(
-            content=ft.Column([
-                ft.Icon(icons.FOLDER_OPEN if icons else "folder_open", size=48, color="#6366f1"),
-                ft.Text("Ordner auswählen", size=18, weight=ft.FontWeight.BOLD, color="#cdd6f4"),
-                ft.Row([
-                    ft.TextField(
-                        ref=self.folder_path,
-                        hint_text="Ordner-Pfad eingeben...",
-                        expand=True,
-                        text_size=14,
-                        border_color="#6366f1",
-                        focused_border_color="#818cf8",
-                        cursor_color="#6366f1",
-                        color="#cdd6f4",
-                        hint_style=ft.TextStyle(color="#6c7086")
-                    ),
-                    ft.ElevatedButton(
-                        "Durchsuchen",
-                        ref=self.browse_button_ref,
-                        icon=icons.FOLDER_OPEN if icons else "folder_open",
-                        on_click=self.browse_folder,
-                        height=50,
-                        style=ft.ButtonStyle(
-                            bgcolor="#6366f1",
-                            color="#ffffff"
-                        )
-                    )
-                ], width=650, spacing=10),
-                ft.Text("Oder Pfad aus Finder kopieren (Rechtsklick → 'Als Pfadname kopieren') und hier einfügen", 
-                       size=10, 
-                       italic=True,
-                       color="#6c7086")
-            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
-            bgcolor="#1e1e2e",
-            border=ft.border.all(2, "#6366f1"),
-            border_radius=10,
-            padding=30,
-            alignment=ft.alignment.center
+        add_buttons = ft.Row(
+            [
+                ft.ElevatedButton(
+                    "Add Files",
+                    icon=icons.ADD if icons else "add",
+                    on_click=self.browse_convert_files,
+                    style=ft.ButtonStyle(bgcolor="#6366f1", color="#ffffff"),
+                ),
+                ft.ElevatedButton(
+                    "Add Folder",
+                    icon=icons.FOLDER_OPEN if icons else "folder_open",
+                    on_click=self.browse_convert_folder,
+                    style=ft.ButtonStyle(bgcolor="#6366f1", color="#ffffff"),
+                ),
+                ft.ElevatedButton(
+                    "Clear Queue",
+                    icon=icons.DELETE if icons else "delete",
+                    on_click=self.clear_convert_queue,
+                    style=ft.ButtonStyle(bgcolor="#ef4444", color="#ffffff"),
+                ),
+            ],
+            spacing=10,
+            wrap=True,
+        )
+
+        queue_container = ft.Container(
+            content=ft.ListView(
+                ref=self.convert_queue_list,
+                spacing=4,
+                padding=10,
+                auto_scroll=False,
+            ),
+            border=ft.border.all(1, "#313244"),
+            border_radius=8,
+            bgcolor="#181825",
+            height=150,
         )
 
         codec_row = ft.Row([
@@ -194,15 +197,26 @@ class ConverterApp:
             )
         ])
 
-        start_button = ft.ElevatedButton(
-            ref=self.start_button_ref,
-            text="Start Konvertierung",
-            icon=icons.PLAY_ARROW if icons else "play_arrow",
-            on_click=self.start_conversion,
-            style=ft.ButtonStyle(
-                color="#ffffff",
-                bgcolor="#22c55e"
-            )
+        start_cancel_row = ft.Row(
+            [
+                ft.ElevatedButton(
+                    ref=self.start_button_ref,
+                    text="Start Konvertierung",
+                    icon=icons.PLAY_ARROW if icons else "play_arrow",
+                    on_click=self.start_conversion,
+                    style=ft.ButtonStyle(color="#ffffff", bgcolor="#22c55e"),
+                    visible=True,
+                ),
+                ft.ElevatedButton(
+                    ref=self.cancel_button_ref,
+                    text="CANCEL",
+                    icon=icons.CLOSE if icons else "close",
+                    on_click=self.cancel_conversion,
+                    style=ft.ButtonStyle(color="#ffffff", bgcolor="#f97316"),
+                    visible=False,
+                ),
+            ],
+            spacing=10,
         )
 
         progress_section = ft.Column([
@@ -217,7 +231,7 @@ class ConverterApp:
                 ref=self.progress_bar,
                 value=0,
                 width=700,
-                visible=False,
+                visible=True,
                 color="#6366f1",
                 bgcolor="#313244"
             )
@@ -232,7 +246,7 @@ class ConverterApp:
             border=ft.border.all(1, "#313244"),
             border_radius=8,
             padding=15,
-            height=200,
+            height=150,
             bgcolor="#181825",
             expand=True
         )
@@ -240,16 +254,18 @@ class ConverterApp:
         return ft.Column(
             [
                 ft.Container(height=10),
-                folder_input_area,
+                add_buttons,
+                ft.Container(height=10),
+                queue_container,
                 ft.Container(height=10),
                 codec_row,
                 ft.Container(height=10),
                 replace_row,
-                ft.Container(height=20),
-                start_button,
-                ft.Container(height=15),
+                ft.Container(height=10),
+                start_cancel_row,
+                ft.Container(height=10),
                 progress_section,
-                ft.Container(height=15),
+                ft.Container(height=10),
                 ft.Text("Log:", weight=ft.FontWeight.BOLD, color="#cdd6f4"),
                 log_container
             ],
@@ -414,30 +430,120 @@ class ConverterApp:
             expand=True,
         )
     
-    def browse_folder(self, e):
-        # Platform-specific folder selection
+    def browse_convert_files(self, e):
         if platform.system() == "Darwin":
             # macOS: Use native AppleScript dialog
             try:
                 result = subprocess.run(
-                    ["osascript", "-e", 'POSIX path of (choose folder with prompt "Video-Ordner auswählen")'],
+                    ["osascript", "-e", 'set theFiles to choose file with prompt "Select video files" of type {"mkv", "mp4", "avi", "mov", "wmv", "vvc"} with multiple selections allowed', "-e", 'set output to ""', "-e", 'repeat with f in theFiles', "-e", 'set output to output & POSIX path of f & "\n"', "-e", 'end repeat', "-e", 'return output'],
+                    capture_output=True,
+                    text=True
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    added = 0
+                    for line in result.stdout.strip().split("\n"):
+                        file_path = line.strip()
+                        if file_path and file_path.lower().endswith((".mkv", ".mp4", ".avi", ".mov", ".wmv", ".vvc")):
+                            self._convert_task_queue.put(file_path)
+                            self.convert_queue_list.current.controls.append(
+                                ft.Text(Path(file_path).name, size=12, color="#a6adc8")
+                            )
+                            added += 1
+                    if added:
+                        self.progress_text.current.value = f"Queued: {self._convert_task_queue.qsize()} files"
+                        self.page.update()
+            except Exception as ex:
+                self.log(f"Error: {ex}", "#ef4444")
+                self.page.update()
+        else:
+            # Windows/Linux: Use Flet FilePicker
+            self.convert_files_picker.pick_files(
+                allow_multiple=True,
+                dialog_title="Add video files",
+            )
+
+    def browse_convert_folder(self, e):
+        if platform.system() == "Darwin":
+            # macOS: Use native AppleScript dialog
+            try:
+                result = subprocess.run(
+                    ["osascript", "-e", 'POSIX path of (choose folder with prompt "Select folder with videos")'],
                     capture_output=True,
                     text=True
                 )
                 if result.returncode == 0 and result.stdout.strip():
                     folder_path = result.stdout.strip().rstrip('/')
-                    self.folder_path.current.value = folder_path
-                    self.page.update()
-                    self.log(f"Ordner ausgewählt: {folder_path}", "#22c55e")
-                else:
-                    self.log("Auswahl abgebrochen", "#f97316")
+                    folder = Path(folder_path)
+                    added = 0
+                    for p in folder.iterdir():
+                        if p.is_file() and p.suffix.lower() in (".mkv", ".mp4", ".avi", ".mov", ".wmv", ".vvc"):
+                            self._convert_task_queue.put(str(p))
+                            self.convert_queue_list.current.controls.append(
+                                ft.Text(p.name, size=12, color="#a6adc8")
+                            )
+                            added += 1
+                    if added:
+                        self.progress_text.current.value = f"Queued: {self._convert_task_queue.qsize()} files"
+                        self.page.update()
             except Exception as ex:
-                self.log(f"Fehler beim Öffnen des Dialogs: {ex}", "#ef4444")
+                self.log(f"Error: {ex}", "#ef4444")
+                self.page.update()
         else:
             # Windows/Linux: Use Flet FilePicker
-            self.folder_picker.get_directory_path(
-                dialog_title="Video-Ordner auswählen"
+            self.convert_folder_picker.get_directory_path(
+                dialog_title="Select folder with videos",
             )
+
+    def on_convert_files_picked(self, e: ft.FilePickerResultEvent):
+        if not e.files:
+            return
+        added = 0
+        for f in e.files:
+            if f.path and f.path.lower().endswith((".mkv", ".mp4", ".avi", ".mov", ".wmv", ".vvc")):
+                self._convert_task_queue.put(f.path)
+                self.convert_queue_list.current.controls.append(
+                    ft.Text(Path(f.path).name, size=12, color="#a6adc8")
+                )
+                added += 1
+        if added:
+            self.progress_text.current.value = f"Queued: {self._convert_task_queue.qsize()} files"
+            self.page.update()
+
+    def on_convert_folder_picked(self, e: ft.FilePickerResultEvent):
+        if not e.path:
+            return
+        folder = Path(e.path)
+        added = 0
+        try:
+            for p in folder.iterdir():
+                if p.is_file() and p.suffix.lower() in (".mkv", ".mp4", ".avi", ".mov", ".wmv", ".vvc"):
+                    self._convert_task_queue.put(str(p))
+                    self.convert_queue_list.current.controls.append(
+                        ft.Text(p.name, size=12, color="#a6adc8")
+                    )
+                    added += 1
+        except Exception:
+            pass
+        if added:
+            self.progress_text.current.value = f"Queued: {self._convert_task_queue.qsize()} files"
+            self.page.update()
+
+    def clear_convert_queue(self, e):
+        self._convert_task_queue = queue.Queue()
+        self.convert_queue_list.current.controls.clear()
+        self.progress_bar.current.value = 0
+        self.progress_text.current.value = "Bereit"
+        self.page.update()
+
+    def cancel_conversion(self, e):
+        self._convert_cancel_requested = True
+        self.progress_text.current.value = "Cancelling..."
+        try:
+            if self._convert_current_process is not None:
+                self._convert_current_process.kill()
+        except Exception:
+            pass
+        self.page.update()
 
     def browse_compress_files(self, e):
         if platform.system() == "Darwin":
@@ -800,20 +906,10 @@ class ConverterApp:
                             self.progress_text.current.color = color
                             updated = True
 
-                        elif msg[0] == "convert_enable_ui":
-                            self.start_button_ref.current.disabled = False
-                            self.browse_button_ref.current.disabled = False
-                            self.folder_path.current.disabled = False
-                            self.codec_dropdown.current.disabled = False
-                            self.replace_checkbox.current.disabled = False
-                            updated = True
-
-                        elif msg[0] == "convert_disable_ui":
-                            self.start_button_ref.current.disabled = True
-                            self.browse_button_ref.current.disabled = True
-                            self.folder_path.current.disabled = True
-                            self.codec_dropdown.current.disabled = True
-                            self.replace_checkbox.current.disabled = True
+                        elif msg[0] == "convert_idle":
+                            self.start_button_ref.current.visible = True
+                            self.cancel_button_ref.current.visible = False
+                            self.convert_queue_list.current.controls.clear()
                             updated = True
 
                         elif msg[0] == "clear_log":
@@ -923,48 +1019,54 @@ class ConverterApp:
             self.log("✗ FFmpeg nicht gefunden! Bitte installiere FFmpeg.", "#ef4444")
 
     def start_conversion(self, e):
-        folder = self.folder_path.current.value
-
-        if not folder or not os.path.isdir(folder):
-            self.log("✗ Bitte wähle einen gültigen Ordner aus.", "#ef4444")
+        if self._convert_task_queue.empty():
+            self.log("✗ Queue is empty. Add files first.", "#ef4444")
             return
 
-        self._ui_queue.put(("convert_disable_ui",))
+        self._convert_cancel_requested = False
+        self.start_button_ref.current.visible = False
+        self.cancel_button_ref.current.visible = True
         self._ui_queue.put(("clear_log",))
         self._ui_queue.put(("log", "=== Konvertierung gestartet ===", "#6366f1"))
         self._ui_queue.put(("convert_visibility", True))
-        self._ui_queue.put(("convert_progress", 0, "Bereit"))
+        self._ui_queue.put(("convert_progress", 0, "Starting..."))
         self._ui_queue.put(("convert_text_color", "#6366f1"))
+        self.page.update()
 
-        threading.Thread(target=self._run_conversion, args=(folder,), daemon=True).start()
+        threading.Thread(target=self._run_conversion, daemon=True).start()
 
-    def _run_conversion(self, folder):
+    def _run_conversion(self):
         video_files = []
-        for root_dir, dirs, files in os.walk(folder):
-            for f in files:
-                if f.lower().endswith((".mkv", ".mp4")):
-                    video_files.append(os.path.join(root_dir, f))
+        while not self._convert_task_queue.empty():
+            video_files.append(self._convert_task_queue.get())
 
         total_files = len(video_files)
 
         if total_files == 0:
-            self._ui_queue.put(("log", "Keine Video-Dateien (.mkv, .mp4) gefunden.", "#f97316"))
+            self._ui_queue.put(("log", "Keine Video-Dateien gefunden.", "#f97316"))
             self._ui_queue.put(("convert_done", 0, "Keine Dateien gefunden", "#f97316"))
-            self._ui_queue.put(("convert_visibility", False))
-            self._ui_queue.put(("convert_enable_ui",))
+            self._ui_queue.put(("convert_idle",))
             return
 
+        converted = 0
         for index, file_path in enumerate(video_files, 1):
+            if self._convert_cancel_requested:
+                self._ui_queue.put(("log", "Konvertierung abgebrochen.", "#f97316"))
+                break
             self.convert_file(file_path, index, total_files)
+            converted += 1
 
-        self._ui_queue.put((
-            "convert_done",
-            1.0,
-            f"✓ Fertig! {total_files} Dateien konvertiert",
-            "#22c55e",
-        ))
-        self._ui_queue.put(("log", f"\n=== Konvertierung abgeschlossen! ({total_files} Dateien) ===", "#22c55e"))
-        self._ui_queue.put(("convert_enable_ui",))
+        if not self._convert_cancel_requested:
+            self._ui_queue.put((
+                "convert_done",
+                1.0,
+                f"✓ Fertig! {converted} Dateien konvertiert",
+                "#22c55e",
+            ))
+            self._ui_queue.put(("log", f"\n=== Konvertierung abgeschlossen! ({converted} Dateien) ===", "#22c55e"))
+        
+        self._ui_queue.put(("convert_idle",))
+        self._convert_cancel_requested = False
 
 
 def main(page: ft.Page):
