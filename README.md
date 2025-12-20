@@ -171,16 +171,19 @@ python main.py
 #### macOS
 
 1. **Install PyInstaller:**
+
    ```bash
    pip install pyinstaller
    ```
 
 2. **Build the app:**
+
    ```bash
    pyinstaller --onefile --windowed --name H266VideoConverter main.py
    ```
 
 3. **Or use Flet's built-in packaging:**
+
    ```bash
    flet pack main.py --name H266VideoConverter --icon icon.icns
    ```
@@ -192,13 +195,15 @@ python main.py
 #### Windows
 
 1. **Install PyInstaller:**
+
    ```bash
    pip install pyinstaller
    ```
 
 2. **Build the exe:**
+
    ```bash
-   pyinstaller --onefile --windowed --name H266VideoConverter main.py
+   python -m PyInstaller --onefile --name H266VideoConverter main.py
    ```
 
 3. **Find your executable:** `dist\H266VideoConverter.exe`
