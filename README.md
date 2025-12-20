@@ -58,10 +58,19 @@ git clone https://github.com/yourusername/H266VideoConverter.git
 cd H266VideoConverter
 ```
 
-### 3. Run the Application
+### 3. Create Virtual Environment (Recommended)
 
 ```bash
-python3 converter.py
+python3.13 -m venv venv
+source venv/bin/activate  # macOS/Linux
+# or on Windows: venv\Scripts\activate
+pip install flet
+```
+
+### 4. Run the Application
+
+```bash
+python main.py
 ```
 
 On first run, the application will automatically prompt you to install Flet if it's not already installed.
@@ -114,9 +123,13 @@ The converter uses the following FFmpeg settings:
 
 ```
 H266VideoConverter/
-├── converter.py          # Main application
+├── main.py              # Main entry point
+├── tabs/
+│   ├── __init__.py      # Package exports
+│   ├── convert_tab.py   # H.266 to H.265/H.264 conversion
+│   └── compress_tab.py  # GPU-accelerated compression
 ├── README.md            # This file
-└── requirements.txt     # Python dependencies (optional)
+└── requirements.txt     # Python dependencies
 ```
 
 ## Troubleshooting
@@ -149,18 +162,55 @@ pip install flet
 ### Running from Source
 
 ```bash
-python3 converter.py
+source venv/bin/activate
+python main.py
 ```
 
 ### Building Standalone Executable
 
-```bash
-flet pack converter.py --name H266VideoConverter
-```
+#### macOS
+
+1. **Install PyInstaller:**
+   ```bash
+   pip install pyinstaller
+   ```
+
+2. **Build the app:**
+   ```bash
+   pyinstaller --onefile --windowed --name H266VideoConverter main.py
+   ```
+
+3. **Or use Flet's built-in packaging:**
+   ```bash
+   flet pack main.py --name H266VideoConverter --icon icon.icns
+   ```
+
+4. **Find your executable:**
+   - PyInstaller: `dist/H266VideoConverter.app`
+   - Flet pack: `dist/H266VideoConverter.app`
+
+#### Windows
+
+1. **Install PyInstaller:**
+   ```bash
+   pip install pyinstaller
+   ```
+
+2. **Build the exe:**
+   ```bash
+   pyinstaller --onefile --windowed --name H266VideoConverter main.py
+   ```
+
+3. **Find your executable:** `dist\H266VideoConverter.exe`
+
+#### Linux
 
 ```bash
-python -m PyInstaller --onefile --windowed movie_compressor.py
+pip install pyinstaller
+pyinstaller --onefile --name H266VideoConverter main.py
 ```
+
+The executable will be in `dist/H266VideoConverter`.
 
 ## Contributing
 
