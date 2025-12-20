@@ -439,15 +439,68 @@ class ConverterApp:
             )
 
     def browse_compress_files(self, e):
-        self.compress_files_picker.pick_files(
-            allow_multiple=True,
-            dialog_title="Add video files",
-        )
+        if platform.system() == "Darwin":
+            # macOS: Use native AppleScript dialog
+            try:
+                result = subprocess.run(
+                    ["osascript", "-e", 'set theFiles to choose file with prompt "Select video files" of type {"mkv", "mp4", "avi", "mov", "wmv"} with multiple selections allowed', "-e", 'set output to ""', "-e", 'repeat with f in theFiles', "-e", 'set output to output & POSIX path of f & "\n"', "-e", 'end repeat', "-e", 'return output'],
+                    capture_output=True,
+                    text=True
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    added = 0
+                    for line in result.stdout.strip().split("\n"):
+                        file_path = line.strip()
+                        if file_path and file_path.lower().endswith((".mkv", ".mp4", ".avi", ".mov", ".wmv")):
+                            self._compress_task_queue.put(file_path)
+                            self.compress_queue_list.current.controls.append(
+                                ft.Text(Path(file_path).name, size=12, color="#a6adc8")
+                            )
+                            added += 1
+                    if added:
+                        self.compress_status_text.current.value = f"Queued: {self._compress_task_queue.qsize()}"
+                        self.page.update()
+            except Exception as ex:
+                self.compress_status_text.current.value = f"Error: {ex}"
+                self.page.update()
+        else:
+            # Windows/Linux: Use Flet FilePicker
+            self.compress_files_picker.pick_files(
+                allow_multiple=True,
+                dialog_title="Add video files",
+            )
 
     def browse_compress_folder(self, e):
-        self.compress_folder_picker.get_directory_path(
-            dialog_title="Add folder with videos",
-        )
+        if platform.system() == "Darwin":
+            # macOS: Use native AppleScript dialog
+            try:
+                result = subprocess.run(
+                    ["osascript", "-e", 'POSIX path of (choose folder with prompt "Select folder with videos")'],
+                    capture_output=True,
+                    text=True
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    folder_path = result.stdout.strip().rstrip('/')
+                    folder = Path(folder_path)
+                    added = 0
+                    for p in folder.iterdir():
+                        if p.is_file() and p.suffix.lower() in (".mkv", ".mp4", ".avi", ".mov", ".wmv"):
+                            self._compress_task_queue.put(str(p))
+                            self.compress_queue_list.current.controls.append(
+                                ft.Text(p.name, size=12, color="#a6adc8")
+                            )
+                            added += 1
+                    if added:
+                        self.compress_status_text.current.value = f"Queued: {self._compress_task_queue.qsize()}"
+                        self.page.update()
+            except Exception as ex:
+                self.compress_status_text.current.value = f"Error: {ex}"
+                self.page.update()
+        else:
+            # Windows/Linux: Use Flet FilePicker
+            self.compress_folder_picker.get_directory_path(
+                dialog_title="Add folder with videos",
+            )
     
     def on_folder_picked(self, e: ft.FilePickerResultEvent):
         # This is only used on Windows/Linux

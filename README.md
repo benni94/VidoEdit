@@ -3,7 +3,7 @@
 A modern, cross-platform desktop application for converting H.266/VVC video files to H.265 (HEVC) or H.264 (AVC) formats.
 
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-blue)
-![Python](https://img.shields.io/badge/python-3.11+-green)
+![Python](https://img.shields.io/badge/python-3.13+-green)
 ![License](https://img.shields.io/badge/license-MIT-orange)
 
 ## Features
@@ -22,7 +22,7 @@ A modern, cross-platform desktop application for converting H.266/VVC video file
 
 ## Requirements
 
-- Python 3.11 or higher
+- Python 3.13 or higher (important for Flet)
 - FFmpeg (must be installed and available in PATH)
 
 ## Installation

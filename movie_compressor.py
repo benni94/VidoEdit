@@ -1,5 +1,7 @@
+#!/usr/bin/env python3
 # GPU Movie Compressor Pro — FINAL STABLE VERSION
-# Windows | Python 3.10+ | FFmpeg required in PATH
+# macOS/Windows | Python 3.10+ | FFmpeg required in PATH
+# Note: On macOS, run with a Python that has tkinter (e.g., /usr/bin/python3)
 
 import tkinter as tk
 from tkinter import filedialog, ttk, messagebox
