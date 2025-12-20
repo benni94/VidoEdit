@@ -379,6 +379,7 @@ class ConverterApp:
                     icon=icons.PLAY_ARROW if icons else "play_arrow",
                     on_click=self.start_compress,
                     style=ft.ButtonStyle(color="#ffffff", bgcolor="#22c55e"),
+                    visible=True,
                 ),
                 ft.ElevatedButton(
                     ref=self.compress_cancel_button_ref,
@@ -386,7 +387,7 @@ class ConverterApp:
                     icon=icons.CLOSE if icons else "close",
                     on_click=self.cancel_compress,
                     style=ft.ButtonStyle(color="#ffffff", bgcolor="#f97316"),
-                    disabled=True,
+                    visible=False,
                 ),
             ],
             spacing=10,
@@ -607,8 +608,8 @@ class ConverterApp:
             return
 
         self._compress_cancel_requested = False
-        self.compress_start_button_ref.current.disabled = True
-        self.compress_cancel_button_ref.current.disabled = False
+        self.compress_start_button_ref.current.visible = False
+        self.compress_cancel_button_ref.current.visible = True
         self.compress_status_text.current.value = "Starting..."
         self.page.update()
 
@@ -738,8 +739,8 @@ class ConverterApp:
 
                         elif msg[0] == "idle":
                             self.compress_status_text.current.value = "Idle"
-                            self.compress_start_button_ref.current.disabled = False
-                            self.compress_cancel_button_ref.current.disabled = True
+                            self.compress_start_button_ref.current.visible = True
+                            self.compress_cancel_button_ref.current.visible = False
                             updated = True
 
                 except queue.Empty:
