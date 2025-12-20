@@ -158,6 +158,10 @@ python3 converter.py
 flet pack converter.py --name H266VideoConverter
 ```
 
+```bash
+python -m PyInstaller --onefile --windowed movie_compressor.py
+```
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
