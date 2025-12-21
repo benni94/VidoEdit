@@ -20,8 +20,9 @@ class ConvertTab:
     
     VIDEO_EXTENSIONS = (".mkv", ".mp4", ".avi", ".mov", ".wmv", ".vvc")
     
-    def __init__(self, page: ft.Page):
+    def __init__(self, page: ft.Page, language_manager):
         self.page = page
+        self.lang_manager = language_manager
         
         # UI Refs
         self.queue_list = ft.Ref[ft.ListView]()
@@ -53,19 +54,19 @@ class ConvertTab:
         add_buttons = ft.Row(
             [
                 ft.ElevatedButton(
-                    "Add Files",
+                    self.lang_manager.get_text("add_files"),
                     icon=icons.ADD if icons else "add",
                     on_click=self._browse_files,
                     style=ft.ButtonStyle(bgcolor="#6366f1", color="#ffffff"),
                 ),
                 ft.ElevatedButton(
-                    "Add Folder",
+                    self.lang_manager.get_text("add_folder"),
                     icon=icons.FOLDER_OPEN if icons else "folder_open",
                     on_click=self._browse_folder,
                     style=ft.ButtonStyle(bgcolor="#6366f1", color="#ffffff"),
                 ),
                 ft.ElevatedButton(
-                    "Clear Queue",
+                    self.lang_manager.get_text("clear_queue"),
                     icon=icons.DELETE if icons else "delete",
                     on_click=self._clear_queue,
                     style=ft.ButtonStyle(bgcolor="#ef4444", color="#ffffff"),
@@ -89,7 +90,7 @@ class ConvertTab:
         )
 
         codec_row = ft.Row([
-            ft.Text("Zielcodec:", width=120, color="#cdd6f4"),
+            ft.Text(self.lang_manager.get_text("target_codec"), width=120, color="#cdd6f4"),
             ft.Dropdown(
                 ref=self.codec_dropdown,
                 width=200,
@@ -108,7 +109,7 @@ class ConvertTab:
         replace_row = ft.Row([
             ft.Checkbox(
                 ref=self.replace_checkbox,
-                label="Originaldateien ersetzen",
+                label=self.lang_manager.get_text("replace_original"),
                 value=False,
                 check_color="#ffffff",
                 active_color="#6366f1",
@@ -120,7 +121,7 @@ class ConvertTab:
             [
                 ft.ElevatedButton(
                     ref=self.start_button_ref,
-                    text="Start Konvertierung",
+                    text=self.lang_manager.get_text("start_conversion"),
                     icon=icons.PLAY_ARROW if icons else "play_arrow",
                     on_click=self._start_conversion,
                     style=ft.ButtonStyle(color="#ffffff", bgcolor="#22c55e"),
@@ -128,7 +129,7 @@ class ConvertTab:
                 ),
                 ft.ElevatedButton(
                     ref=self.cancel_button_ref,
-                    text="CANCEL",
+                    text=self.lang_manager.get_text("cancel"),
                     icon=icons.CLOSE if icons else "close",
                     on_click=self._cancel_conversion,
                     style=ft.ButtonStyle(color="#ffffff", bgcolor="#f97316"),
@@ -141,7 +142,7 @@ class ConvertTab:
         progress_section = ft.Column([
             ft.Text(
                 ref=self.progress_text,
-                value="Bereit",
+                value=self.lang_manager.get_text("ready"),
                 size=14,
                 weight=ft.FontWeight.BOLD,
                 color="#6366f1"
@@ -185,7 +186,7 @@ class ConvertTab:
                 ft.Container(height=10),
                 progress_section,
                 ft.Container(height=10),
-                ft.Text("Log:", weight=ft.FontWeight.BOLD, color="#cdd6f4"),
+                ft.Text(self.lang_manager.get_text("log"), weight=ft.FontWeight.BOLD, color="#cdd6f4"),
                 log_container
             ],
             scroll=ft.ScrollMode.AUTO,
@@ -447,15 +448,15 @@ class ConvertTab:
 
     def _start_conversion(self, e):
         if self._task_queue.empty():
-            self._log("✗ Queue is empty. Add files first.", "#ef4444")
+            self._log(self.lang_manager.get_text("queue_empty"), "#ef4444")
             return
 
         self._cancel_requested = False
         self.start_button_ref.current.visible = False
         self.cancel_button_ref.current.visible = True
         self._ui_queue.put(("clear_log",))
-        self._ui_queue.put(("log", "=== Konvertierung gestartet ===", "#6366f1"))
-        self._ui_queue.put(("progress", 0, "Starting..."))
+        self._ui_queue.put(("log", self.lang_manager.get_text("conversion_started"), "#6366f1"))
+        self._ui_queue.put(("progress", 0, self.lang_manager.get_text("starting")))
         self.page.update()
 
         threading.Thread(target=self._run_conversion, daemon=True).start()
@@ -468,15 +469,15 @@ class ConvertTab:
         total_files = len(video_files)
 
         if total_files == 0:
-            self._ui_queue.put(("log", "Keine Video-Dateien gefunden.", "#f97316"))
-            self._ui_queue.put(("done", 0, "Keine Dateien gefunden", "#f97316"))
+            self._ui_queue.put(("log", self.lang_manager.get_text("no_video_files"), "#f97316"))
+            self._ui_queue.put(("done", 0, self.lang_manager.get_text("no_files_found"), "#f97316"))
             self._ui_queue.put(("idle",))
             return
 
         converted = 0
         for index, file_path in enumerate(video_files, 1):
             if self._cancel_requested:
-                self._ui_queue.put(("log", "Konvertierung abgebrochen.", "#f97316"))
+                self._ui_queue.put(("log", self.lang_manager.get_text("conversion_cancelled"), "#f97316"))
                 break
             self._convert_file(file_path, index, total_files)
             converted += 1
@@ -485,10 +486,10 @@ class ConvertTab:
             self._ui_queue.put((
                 "done",
                 1.0,
-                f"✓ Fertig! {converted} Dateien konvertiert",
+                self.lang_manager.get_text("done", count=converted),
                 "#22c55e",
             ))
-            self._ui_queue.put(("log", f"\n=== Konvertierung abgeschlossen! ({converted} Dateien) ===", "#22c55e"))
+            self._ui_queue.put(("log", self.lang_manager.get_text("conversion_complete", count=converted), "#22c55e"))
         
         self._ui_queue.put(("idle",))
         self._cancel_requested = False

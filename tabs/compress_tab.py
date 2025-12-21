@@ -26,8 +26,9 @@ class CompressTab:
         "Plex - Designed for streaming platforms like Plex, balancing quality with a faster encoding speed.": {"crf": 24, "preset": "medium"},
     }
     
-    def __init__(self, page: ft.Page):
+    def __init__(self, page: ft.Page, language_manager):
         self.page = page
+        self.lang_manager = language_manager
         
         # UI Refs
         self.queue_list = ft.Ref[ft.ListView]()
@@ -57,29 +58,41 @@ class CompressTab:
         """Build and return the tab content"""
         self._start_ui_poller()
         
-        preset_options = list(self.PRESETS.keys())
+        preset_options = [
+            self.lang_manager.get_text("preset_film"),
+            self.lang_manager.get_text("preset_anime"),
+            self.lang_manager.get_text("preset_4k"),
+            self.lang_manager.get_text("preset_plex"),
+        ]
+        preset_mapping = {
+            self.lang_manager.get_text("preset_film"): {"crf": 23, "preset": "slow"},
+            self.lang_manager.get_text("preset_anime"): {"crf": 20, "preset": "veryslow"},
+            self.lang_manager.get_text("preset_4k"): {"crf": 22, "preset": "slow"},
+            self.lang_manager.get_text("preset_plex"): {"crf": 24, "preset": "medium"},
+        }
+        self._preset_mapping = preset_mapping
         
         encoder_row = ft.Row([
-            ft.Text("Encoder:", width=120, color="#cdd6f4"),
+            ft.Text(self.lang_manager.get_text("encoder"), width=120, color="#cdd6f4"),
             ft.Text(self._encoder, color="#a6adc8"),
         ])
 
         add_buttons = ft.Row(
             [
                 ft.ElevatedButton(
-                    "Add Files",
+                    self.lang_manager.get_text("add_files"),
                     icon=icons.ADD if icons else "add",
                     on_click=self._browse_files,
                     style=ft.ButtonStyle(bgcolor="#6366f1", color="#ffffff"),
                 ),
                 ft.ElevatedButton(
-                    "Add Folder",
+                    self.lang_manager.get_text("add_folder"),
                     icon=icons.FOLDER_OPEN if icons else "folder_open",
                     on_click=self._browse_folder,
                     style=ft.ButtonStyle(bgcolor="#6366f1", color="#ffffff"),
                 ),
                 ft.ElevatedButton(
-                    "Clear Queue",
+                    self.lang_manager.get_text("clear_queue"),
                     icon=icons.DELETE if icons else "delete",
                     on_click=self._clear_queue,
                     style=ft.ButtonStyle(bgcolor="#ef4444", color="#ffffff"),
@@ -104,21 +117,21 @@ class CompressTab:
 
         mode_section = ft.Column(
             [
-                ft.Text("Mode", weight=ft.FontWeight.BOLD, color="#cdd6f4"),
+                ft.Text(self.lang_manager.get_text("mode"), weight=ft.FontWeight.BOLD, color="#cdd6f4"),
                 ft.RadioGroup(
                     ref=self.mode_radio,
                     value="CRF",
                     content=ft.Column(
                         [
                             ft.Radio(value="CRF", label="CRF"),
-                            ft.Radio(value="SIZE", label="Target Size (GB)"),
+                            ft.Radio(value="SIZE", label=self.lang_manager.get_text("target_size")),
                         ]
                     ),
                 ),
                 ft.TextField(
                     ref=self.target_size,
                     value="5",
-                    label="Target Size (GB)",
+                    label=self.lang_manager.get_text("target_size"),
                     width=200,
                     border_color="#6366f1",
                     focused_border_color="#818cf8",
@@ -130,7 +143,7 @@ class CompressTab:
         )
 
         preset_row = ft.Row([
-            ft.Text("Presets:", width=120, color="#cdd6f4"),
+            ft.Text(self.lang_manager.get_text("presets"), width=120, color="#cdd6f4"),
             ft.Dropdown(
                 ref=self.preset_dropdown,
                 width=600,
@@ -147,7 +160,7 @@ class CompressTab:
             [
                 ft.Text(
                     ref=self.progress_text,
-                    value="Idle",
+                    value=self.lang_manager.get_text("idle"),
                     size=14,
                     weight=ft.FontWeight.BOLD,
                     color="#6366f1",
@@ -160,7 +173,7 @@ class CompressTab:
                     color="#6366f1",
                     bgcolor="#313244",
                 ),
-                ft.Text(ref=self.status_text, value="Idle", color="#a6adc8"),
+                ft.Text(ref=self.status_text, value=self.lang_manager.get_text("idle"), color="#a6adc8"),
             ],
             spacing=6,
         )
@@ -169,7 +182,7 @@ class CompressTab:
             [
                 ft.ElevatedButton(
                     ref=self.start_button_ref,
-                    text="START",
+                    text=self.lang_manager.get_text("start"),
                     icon=icons.PLAY_ARROW if icons else "play_arrow",
                     on_click=self._start_compress,
                     style=ft.ButtonStyle(color="#ffffff", bgcolor="#22c55e"),
@@ -177,7 +190,7 @@ class CompressTab:
                 ),
                 ft.ElevatedButton(
                     ref=self.cancel_button_ref,
-                    text="CANCEL",
+                    text=self.lang_manager.get_text("cancel"),
                     icon=icons.CLOSE if icons else "close",
                     on_click=self._cancel_compress,
                     style=ft.ButtonStyle(color="#ffffff", bgcolor="#f97316"),
@@ -389,7 +402,7 @@ class CompressTab:
 
         mode = self.mode_radio.current.value
         preset_key = self.preset_dropdown.current.value
-        preset = self.PRESETS.get(preset_key, {"crf": 23, "preset": "slow"})
+        preset = self._preset_mapping.get(preset_key, {"crf": 23, "preset": "slow"})
 
         cmd = [
             "ffmpeg", "-y",
@@ -467,18 +480,18 @@ class CompressTab:
                         if msg[0] == "progress":
                             _, prog = msg
                             self.progress_bar.current.value = prog / 100.0
-                            self.progress_text.current.value = f"Compressing... ({int(prog)}%)"
+                            self.progress_text.current.value = self.lang_manager.get_text("compressing", percent=int(prog))
                             updated = True
                         elif msg[0] == "status":
                             self.status_text.current.value = msg[1]
                             updated = True
                         elif msg[0] == "done":
                             self.progress_bar.current.value = 0
-                            self.progress_text.current.value = "Done"
+                            self.progress_text.current.value = self.lang_manager.get_text("idle")
                             updated = True
                         elif msg[0] == "idle":
-                            self.status_text.current.value = "Idle"
-                            self.progress_text.current.value = "Idle"
+                            self.status_text.current.value = self.lang_manager.get_text("idle")
+                            self.progress_text.current.value = self.lang_manager.get_text("idle")
                             self.start_button_ref.current.visible = True
                             self.cancel_button_ref.current.visible = False
                             self.queue_list.current.controls.clear()

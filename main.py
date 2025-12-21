@@ -32,6 +32,13 @@ except ImportError:
         sys.exit(1)
 
 from tabs import ConvertTab, CompressTab
+from language_manager import LanguageManager
+from settings_dialog import SettingsDialog
+
+try:
+    from flet import icons
+except (ImportError, AttributeError):
+    icons = None
 
 
 class H266VideoConverterApp:
@@ -39,13 +46,17 @@ class H266VideoConverterApp:
     
     def __init__(self, page: ft.Page):
         self.page = page
+        self.lang_manager = LanguageManager()
+        self.settings_dialog = SettingsDialog(page, self.lang_manager)
+        self.tabs_ref = ft.Ref[ft.Tabs]()
         self._setup_page()
         self._init_tabs()
         self._build_ui()
+        self.lang_manager.register_callback(self._on_language_change)
     
     def _setup_page(self):
         """Configure page settings and theme"""
-        self.page.title = "H266VideoConverter"
+        self.page.title = self.lang_manager.get_text("app_title")
         self.page.padding = 20
         self.page.window.width = 800
         self.page.window.height = 600
@@ -65,27 +76,67 @@ class H266VideoConverterApp:
     
     def _init_tabs(self):
         """Initialize all tab instances"""
-        self.convert_tab = ConvertTab(self.page)
-        self.compress_tab = CompressTab(self.page)
+        self.convert_tab = ConvertTab(self.page, self.lang_manager)
+        self.compress_tab = CompressTab(self.page, self.lang_manager)
         # Add more tabs here in the future:
         # self.another_tab = AnotherTab(self.page)
     
     def _build_ui(self):
         """Build the main UI with tabs"""
+        settings_button = ft.IconButton(
+            icon=icons.SETTINGS if icons else "settings",
+            icon_color="#6366f1",
+            tooltip=self.lang_manager.get_text("settings"),
+            on_click=self._show_settings,
+        )
+        
+        header = ft.Row(
+            [
+                ft.Text(
+                    self.lang_manager.get_text("app_title"),
+                    size=20,
+                    weight=ft.FontWeight.BOLD,
+                    color="#cdd6f4",
+                ),
+                ft.Container(expand=True),
+                settings_button,
+            ],
+            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+        )
+        
         tabs = ft.Tabs(
+            ref=self.tabs_ref,
             selected_index=0,
             animation_duration=250,
             tabs=[
-                ft.Tab(text="Convert", content=self.convert_tab.build()),
-                ft.Tab(text="Compress", content=self.compress_tab.build()),
-                # Add more tabs here:
-                # ft.Tab(text="Another", content=self.another_tab.build()),
+                ft.Tab(text=self.lang_manager.get_text("tab_convert"), content=self.convert_tab.build()),
+                ft.Tab(text=self.lang_manager.get_text("tab_compress"), content=self.compress_tab.build()),
             ],
             expand=1,
         )
         
+        self.page.add(header)
         self.page.add(tabs)
         self.page.update()
+    
+    def _show_settings(self, e):
+        """Show settings dialog"""
+        try:
+            self.settings_dialog.show()
+        except Exception as ex:
+            print(f"Error showing settings: {ex}")
+    
+    def _on_language_change(self):
+        """Handle language change - rebuild UI"""
+        if hasattr(self.page, 'dialog') and self.page.dialog:
+            self.page.dialog.open = False
+        
+        self.page.controls.clear()
+        self.page.title = self.lang_manager.get_text("app_title")
+        
+        self.settings_dialog = SettingsDialog(self.page, self.lang_manager)
+        
+        self._build_ui()
 
 
 def main(page: ft.Page):
