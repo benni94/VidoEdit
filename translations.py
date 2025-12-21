@@ -50,6 +50,8 @@ TRANSLATIONS = {
         "language": "Language",
         "select_language": "Select Language:",
         "close": "Close",
+        "theme_light": "Light Mode",
+        "theme_dark": "Dark Mode",
     },
     "de": {
         # Main window
@@ -100,5 +102,7 @@ TRANSLATIONS = {
         "language": "Sprache",
         "select_language": "Sprache auswählen:",
         "close": "Schließen",
+        "theme_light": "Heller Modus",
+        "theme_dark": "Dunkler Modus",
     }
 }

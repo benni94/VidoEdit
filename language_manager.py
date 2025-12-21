@@ -44,7 +44,34 @@ class LanguageManager:
         """Save language to config file"""
         try:
             self.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
-            config = {'language': language}
+            config = self._load_config()
+            config['language'] = language
+            with open(self.CONFIG_FILE, 'w', encoding='utf-8') as f:
+                json.dump(config, f, indent=2)
+        except Exception:
+            pass
+    
+    def _load_config(self) -> dict:
+        """Load entire config file"""
+        if self.CONFIG_FILE.exists():
+            try:
+                with open(self.CONFIG_FILE, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            except Exception:
+                pass
+        return {}
+    
+    def get_theme_mode(self) -> str:
+        """Get saved theme mode (dark or light)"""
+        config = self._load_config()
+        return config.get('theme_mode', 'dark')
+    
+    def set_theme_mode(self, theme_mode: str):
+        """Save theme mode to config"""
+        try:
+            self.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+            config = self._load_config()
+            config['theme_mode'] = theme_mode
             with open(self.CONFIG_FILE, 'w', encoding='utf-8') as f:
                 json.dump(config, f, indent=2)
         except Exception:

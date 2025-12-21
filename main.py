@@ -60,7 +60,11 @@ class H266VideoConverterApp:
         self.page.padding = 20
         self.page.window.width = 800
         self.page.window.height = 600
-        self.page.theme_mode = ft.ThemeMode.DARK
+        
+        # Load saved theme mode
+        saved_theme = self.lang_manager.get_theme_mode()
+        self.page.theme_mode = ft.ThemeMode.DARK if saved_theme == "dark" else ft.ThemeMode.LIGHT
+        
         self.page.theme = ft.Theme(
             color_scheme=ft.ColorScheme(
                 primary="#6366f1",
@@ -72,7 +76,7 @@ class H266VideoConverterApp:
                 on_background="#cdd6f4",
             )
         )
-        self.page.bgcolor = "#11111b"
+        self.page.bgcolor = "#11111b" if saved_theme == "dark" else "#ffffff"
     
     def _init_tabs(self):
         """Initialize all tab instances"""
@@ -83,6 +87,15 @@ class H266VideoConverterApp:
     
     def _build_ui(self):
         """Build the main UI with tabs"""
+        is_dark = self.page.theme_mode == ft.ThemeMode.DARK
+        
+        theme_button = ft.IconButton(
+            icon=icons.DARK_MODE if icons and is_dark else icons.LIGHT_MODE if icons else "light_mode",
+            icon_color="#6366f1",
+            tooltip=self.lang_manager.get_text("theme_light" if is_dark else "theme_dark"),
+            on_click=self._toggle_theme,
+        )
+        
         settings_button = ft.IconButton(
             icon=icons.SETTINGS if icons else "settings",
             icon_color="#6366f1",
@@ -96,9 +109,10 @@ class H266VideoConverterApp:
                     self.lang_manager.get_text("app_title"),
                     size=20,
                     weight=ft.FontWeight.BOLD,
-                    color="#cdd6f4",
+                    color="#cdd6f4" if is_dark else "#1e1e2e",
                 ),
                 ft.Container(expand=True),
+                theme_button,
                 settings_button,
             ],
             alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
@@ -118,6 +132,21 @@ class H266VideoConverterApp:
         self.page.add(header)
         self.page.add(tabs)
         self.page.update()
+    
+    def _toggle_theme(self, e):
+        """Toggle between dark and light theme"""
+        if self.page.theme_mode == ft.ThemeMode.DARK:
+            self.page.theme_mode = ft.ThemeMode.LIGHT
+            self.page.bgcolor = "#ffffff"
+            self.lang_manager.set_theme_mode("light")
+        else:
+            self.page.theme_mode = ft.ThemeMode.DARK
+            self.page.bgcolor = "#11111b"
+            self.lang_manager.set_theme_mode("dark")
+        
+        # Rebuild UI to update colors and icons
+        self.page.controls.clear()
+        self._build_ui()
     
     def _show_settings(self, e):
         """Show settings dialog"""
