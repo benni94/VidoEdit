@@ -1,6 +1,6 @@
-# H266VideoConverter
+# VidoEdit
 
-A modern, cross-platform desktop application for converting H.266/VVC video files to H.265 (HEVC) or H.264 (AVC) formats.
+VidoEdit is a modern, cross-platform desktop application for converting H.266/VVC video files to H.265 (HEVC) or H.264 (AVC), compressing videos, merging episode parts, and batch-renaming files.
 
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-blue)
 ![Python](https://img.shields.io/badge/python-3.13+-green)
@@ -123,13 +123,22 @@ The converter uses the following FFmpeg settings:
 
 ```
 H266VideoConverter/
-├── main.py              # Main entry point
+├── main.py                 # Main entry point
 ├── tabs/
-│   ├── __init__.py      # Package exports
-│   ├── convert_tab.py   # H.266 to H.265/H.264 conversion
-│   └── compress_tab.py  # GPU-accelerated compression
-├── README.md            # This file
-└── requirements.txt     # Python dependencies
+│   ├── __init__.py         # Package exports
+│   ├── convert_tab.py      # H.266 to H.265/H.264 conversion
+│   ├── compress_tab.py     # GPU-accelerated compression
+│   ├── merge_tab.py        # Merge episode parts (UI + logic)
+│   └── renamer_tab.py      # Multi-file renamer (UI + logic)
+├── attachments/
+│   └── vidoedit.png        # App icon (source image)
+├── scripts/
+│   ├── build_macos.sh      # Build macOS .app with custom icon (.icns)
+│   ├── build_linux.sh      # Build Linux AppImage with icon (PNG)
+│   ├── build_windows.ps1   # Build Windows app with icon (.ico)
+│   └── make_ico.py         # Helper: PNG → ICO (Windows)
+├── README.md               # This file
+└── requirements.txt        # Python dependencies
 ```
 
 ## Troubleshooting
@@ -166,56 +175,51 @@ source venv/bin/activate
 python main.py
 ```
 
-### Building Standalone Executable
+### Building Standalone Executable (with custom icon)
 
-#### macOS
+#### Getting started: build matrix
 
-1. **Install PyInstaller:**
+| OS | Prereqs | Command | Icon file used | Output |
+| --- | --- | --- | --- | --- |
+| macOS | Python, flet, Xcode CLT (iconutil, sips) | `scripts/build_macos.sh` | `attachments/vidoedit.icns` (generated) | `dist/H266VideoConverter.app` |
+| Windows | Python, flet, Pillow | `./scripts/build_windows.ps1` | `attachments/vidoedit.ico` (generated) | `dist/` installer/exe |
+| Linux | Python, flet | `scripts/build_linux.sh` | `attachments/vidoedit.png` | `dist/` AppImage |
 
-   ```bash
-   pip install pyinstaller
-   ```
+#### macOS (preferred: Flet pack)
 
-2. **Build the app:**
-
-   ```bash
-   pyinstaller --onefile --windowed --name H266VideoConverter main.py
-   ```
-
-3. **Or use Flet's built-in packaging:**
-
-   ```bash
-   flet pack main.py --name H266VideoConverter --icon icon.icns
-   ```
-
-4. **Find your executable:**
-   - PyInstaller: `dist/H266VideoConverter.app`
-   - Flet pack: `dist/H266VideoConverter.app`
-
-#### Windows
-
-1. **Install PyInstaller:**
-
-   ```bash
-   pip install pyinstaller
-   ```
-
-2. **Build the exe:**
-
-   ```bash
-   python -m PyInstaller --onefile --name H266VideoConverter main.py
-   ```
-
-3. **Find your executable:** `dist\H266VideoConverter.exe`
-
-#### Linux
+The Dock icon on macOS is taken from the app bundle and won’t change at runtime. Use the provided script to embed the icon and create a .app:
 
 ```bash
-pip install pyinstaller
-pyinstaller --onefile --name H266VideoConverter main.py
+chmod +x scripts/build_macos.sh
+scripts/build_macos.sh
 ```
 
-The executable will be in `dist/H266VideoConverter`.
+Output: `dist/H266VideoConverter.app` with your custom icon.
+
+#### Windows (Flet pack)
+
+Use the PowerShell script to convert the PNG to ICO and pack the app:
+
+```powershell
+./scripts/build_windows.ps1
+```
+
+Output: look in `dist/` for the installer/exe with your icon.
+
+#### Linux (Flet pack)
+
+```bash
+chmod +x scripts/build_linux.sh
+scripts/build_linux.sh
+```
+
+Output: `dist/` folder with an AppImage using your PNG icon.
+
+### Development icon during `python main.py`
+
+- The app serves `attachments/` as `assets_dir` and sets `page.window.icon = "vidoedit.png"`.
+- On Windows/Linux this affects the window/title icon.
+- On macOS the Dock icon comes from the bundled .icns; use the macOS build script to see it in the Dock.
 
 ## Contributing
 

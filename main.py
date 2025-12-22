@@ -5,6 +5,7 @@ A modern, cross-platform desktop application for video conversion and compressio
 """
 import subprocess
 import sys
+from pathlib import Path
 
 # Check if flet is installed, if not ask user to install
 try:
@@ -60,6 +61,15 @@ class H266VideoConverterApp:
         self.page.padding = 20
         self.page.window.width = 800
         self.page.window.height = 600
+        try:
+            # Use app assets for cross-platform icon resolution
+            icon_asset = "vidoedit.png"
+            assets_dir = Path(__file__).parent / "attachments"
+            if (assets_dir / icon_asset).exists():
+                # When assets_dir is provided to ft.app, set window icon by asset name
+                self.page.window.icon = icon_asset
+        except Exception:
+            pass
         
         # Load saved theme mode
         saved_theme = self.lang_manager.get_theme_mode()
@@ -177,4 +187,6 @@ def main(page: ft.Page):
 
 
 if __name__ == "__main__":
-    ft.app(target=main)
+    # Serve attachments folder as app assets so window icon can be referenced by name
+    assets = str((Path(__file__).parent / "attachments").resolve())
+    ft.app(target=main, assets_dir=assets)

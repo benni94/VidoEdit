@@ -9,9 +9,10 @@ from translations import TRANSLATIONS
 class LanguageManager:
     """Manages application language and translations"""
     
-    CONFIG_FILE = Path.home() / ".h266videoconverter" / "config.json"
+    CONFIG_FILE = Path.home() / ".vidoedit" / "config.json"
     
     def __init__(self):
+        self._migrate_old_config()
         self._current_language = self._load_language()
         self._callbacks = []
     
@@ -39,6 +40,23 @@ class LanguageManager:
             except Exception:
                 pass
         return self._detect_system_language()
+
+    def _migrate_old_config(self):
+        """Migrate existing config from old app directory if present."""
+        try:
+            old_config = Path.home() / ".h266videoconverter" / "config.json"
+            if old_config.exists() and not self.CONFIG_FILE.exists():
+                self.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+                data = {}
+                try:
+                    with open(old_config, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                except Exception:
+                    pass
+                with open(self.CONFIG_FILE, 'w', encoding='utf-8') as f:
+                    json.dump(data, f, indent=2)
+        except Exception:
+            pass
     
     def _save_language(self, language: str):
         """Save language to config file"""

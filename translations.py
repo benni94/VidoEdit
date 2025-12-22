@@ -3,7 +3,7 @@
 TRANSLATIONS = {
     "en": {
         # Main window
-        "app_title": "H266VideoConverter",
+        "app_title": "VidoEdit",
         
         # Tabs
         "tab_convert": "Convert",
@@ -91,7 +91,7 @@ TRANSLATIONS = {
     },
     "de": {
         # Main window
-        "app_title": "H266VideoConverter",
+        "app_title": "VidoEdit",
         
         # Tabs
         "tab_convert": "Konvertieren",
