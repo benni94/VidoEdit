@@ -47,6 +47,9 @@ class ConvertTab:
         page.overlay.append(self.files_picker)
         page.overlay.append(self.folder_picker)
     
+    def _c(self, light, dark):
+        return dark if self.page.theme_mode == ft.ThemeMode.DARK else light
+
     def build(self) -> ft.Control:
         """Build and return the tab content"""
         self._start_ui_poller()
@@ -83,14 +86,14 @@ class ConvertTab:
                 padding=10,
                 auto_scroll=False,
             ),
-            border=ft.border.all(1, "#313244"),
+            border=ft.border.all(1, self._c("#e5e7eb", "#313244")),
             border_radius=8,
-            bgcolor="#181825",
+            bgcolor=self._c("#f9fafb", "#181825"),
             height=150,
         )
 
         codec_row = ft.Row([
-            ft.Text(self.lang_manager.get_text("target_codec"), width=120, color="#cdd6f4"),
+            ft.Text(self.lang_manager.get_text("target_codec"), width=120, color=self._c("#1e1e2e", "#cdd6f4")),
             ft.Dropdown(
                 ref=self.codec_dropdown,
                 width=200,
@@ -101,8 +104,8 @@ class ConvertTab:
                 ],
                 border_color="#6366f1",
                 focused_border_color="#818cf8",
-                color="#cdd6f4",
-                bgcolor="#1e1e2e"
+                color=self._c("#1e1e2e", "#cdd6f4"),
+                bgcolor=self._c("#ffffff", "#1e1e2e")
             )
         ])
 
@@ -113,7 +116,7 @@ class ConvertTab:
                 value=False,
                 check_color="#ffffff",
                 active_color="#6366f1",
-                label_style=ft.TextStyle(color="#cdd6f4")
+                label_style=ft.TextStyle(color=self._c("#1f2937", "#cdd6f4"))
             )
         ])
 
@@ -153,7 +156,7 @@ class ConvertTab:
                 width=700,
                 visible=True,
                 color="#6366f1",
-                bgcolor="#313244"
+                bgcolor=self._c("#e5e7eb", "#313244")
             )
         ], spacing=5, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
 
@@ -163,11 +166,11 @@ class ConvertTab:
                 scroll=ft.ScrollMode.AUTO,
                 spacing=5
             ),
-            border=ft.border.all(1, "#313244"),
+            border=ft.border.all(1, self._c("#e5e7eb", "#313244")),
             border_radius=8,
             padding=15,
             height=150,
-            bgcolor="#181825",
+            bgcolor=self._c("#f9fafb", "#181825"),
             expand=True
         )
 
@@ -186,7 +189,7 @@ class ConvertTab:
                 ft.Container(height=10),
                 progress_section,
                 ft.Container(height=10),
-                ft.Text(self.lang_manager.get_text("log"), weight=ft.FontWeight.BOLD, color="#cdd6f4"),
+                ft.Text(self.lang_manager.get_text("log"), weight=ft.FontWeight.BOLD, color=self._c("#111827", "#cdd6f4")),
                 log_container
             ],
             scroll=ft.ScrollMode.AUTO,
@@ -208,7 +211,7 @@ class ConvertTab:
                         if file_path and file_path.lower().endswith(self.VIDEO_EXTENSIONS):
                             self._task_queue.put(file_path)
                             self.queue_list.current.controls.append(
-                                ft.Text(Path(file_path).name, size=12, color="#a6adc8")
+                                ft.Text(Path(file_path).name, size=12, color=self._c("#374151", "#a6adc8"))
                             )
                             added += 1
                     if added:
@@ -238,7 +241,7 @@ class ConvertTab:
                         if p.is_file() and p.suffix.lower() in self.VIDEO_EXTENSIONS:
                             self._task_queue.put(str(p))
                             self.queue_list.current.controls.append(
-                                ft.Text(p.name, size=12, color="#a6adc8")
+                                ft.Text(p.name, size=12, color=self._c("#374151", "#a6adc8"))
                             )
                             added += 1
                     if added:
@@ -259,7 +262,7 @@ class ConvertTab:
             if f.path and f.path.lower().endswith(self.VIDEO_EXTENSIONS):
                 self._task_queue.put(f.path)
                 self.queue_list.current.controls.append(
-                    ft.Text(Path(f.path).name, size=12, color="#a6adc8")
+                    ft.Text(Path(f.path).name, size=12, color=self._c("#374151", "#a6adc8"))
                 )
                 added += 1
         if added:
@@ -276,7 +279,7 @@ class ConvertTab:
                 if p.is_file() and p.suffix.lower() in self.VIDEO_EXTENSIONS:
                     self._task_queue.put(str(p))
                     self.queue_list.current.controls.append(
-                        ft.Text(p.name, size=12, color="#a6adc8")
+                        ft.Text(p.name, size=12, color=self._c("#374151", "#a6adc8"))
                     )
                     added += 1
         except Exception:
@@ -306,7 +309,7 @@ class ConvertTab:
         if threading.current_thread() is not threading.main_thread():
             self._ui_queue.put(("log", message, color))
             return
-        log_entry = ft.Text(message, size=12, color=color if color else "#a6adc8")
+        log_entry = ft.Text(message, size=12, color=color if color else self._c("#374151", "#a6adc8"))
         self.log_column.current.controls.append(log_entry)
         self.page.update()
 
@@ -324,7 +327,7 @@ class ConvertTab:
                         msg = self._ui_queue.get_nowait()
                         if msg[0] == "log":
                             _, message, color = msg
-                            log_entry = ft.Text(message, size=12, color=color if color else "#a6adc8")
+                            log_entry = ft.Text(message, size=12, color=color if color else self._c("#374151", "#a6adc8"))
                             self.log_column.current.controls.append(log_entry)
                             updated = True
                         elif msg[0] == "progress":

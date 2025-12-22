@@ -17,6 +17,9 @@ class SettingsDialog:
         self.bottom_sheet = None
         self.language_dropdown_ref = ft.Ref[ft.Dropdown]()
     
+    def _c(self, light, dark):
+        return dark if self.page.theme_mode == ft.ThemeMode.DARK else light
+
     def _get_text(self, key: str) -> str:
         """Get translated text"""
         return self.lang_manager.get_text(key)
@@ -48,8 +51,8 @@ class SettingsDialog:
                 ],
                 border_color="#6366f1",
                 focused_border_color="#818cf8",
-                color="#cdd6f4",
-                bgcolor="#1e1e2e",
+                color=self._c("#1e1e2e", "#cdd6f4"),
+                bgcolor=self._c("#ffffff", "#1e1e2e"),
                 on_change=self._on_language_change,
             )
             
@@ -62,21 +65,21 @@ class SettingsDialog:
                                     self._get_text("settings"),
                                     size=24,
                                     weight=ft.FontWeight.BOLD,
-                                    color="#cdd6f4",
+                                    color=self._c("#111827", "#cdd6f4"),
                                 ),
                                 ft.Container(expand=True),
                                 ft.IconButton(
                                     icon=icons.CLOSE if icons else "close",
-                                    icon_color="#cdd6f4",
+                                    icon_color=self._c("#111827", "#cdd6f4"),
                                     on_click=self._close_dialog,
                                 ),
                             ],
                             alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                         ),
-                        ft.Divider(color="#313244", height=20),
+                        ft.Divider(color=self._c("#e5e7eb", "#313244"), height=20),
                         ft.Text(
                             self._get_text("select_language"),
-                            color="#cdd6f4",
+                            color=self._c("#1f2937", "#cdd6f4"),
                             weight=ft.FontWeight.BOLD,
                             size=16,
                         ),
@@ -88,14 +91,14 @@ class SettingsDialog:
                     tight=True,
                 ),
                 padding=30,
-                bgcolor="#1e1e2e",
+                bgcolor=self._c("#ffffff", "#1e1e2e"),
                 border_radius=ft.border_radius.only(top_left=20, top_right=20),
             )
             
             self.bottom_sheet = ft.BottomSheet(
                 content=content,
                 open=True,
-                bgcolor="#1e1e2e",
+                bgcolor=self._c("#ffffff", "#1e1e2e"),
             )
             
             self.page.overlay.append(self.bottom_sheet)

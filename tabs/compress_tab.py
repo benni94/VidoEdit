@@ -54,6 +54,9 @@ class CompressTab:
         page.overlay.append(self.files_picker)
         page.overlay.append(self.folder_picker)
     
+    def _c(self, light, dark):
+        return dark if self.page.theme_mode == ft.ThemeMode.DARK else light
+
     def build(self) -> ft.Control:
         """Build and return the tab content"""
         self._start_ui_poller()
@@ -73,8 +76,8 @@ class CompressTab:
         self._preset_mapping = preset_mapping
         
         encoder_row = ft.Row([
-            ft.Text(self.lang_manager.get_text("encoder"), width=120, color="#cdd6f4"),
-            ft.Text(self._encoder, color="#a6adc8"),
+            ft.Text(self.lang_manager.get_text("encoder"), width=120, color=self._c("#1e1e2e", "#cdd6f4")),
+            ft.Text(self._encoder, color=self._c("#374151", "#a6adc8")),
         ])
 
         add_buttons = ft.Row(
@@ -109,15 +112,15 @@ class CompressTab:
                 padding=10,
                 auto_scroll=False,
             ),
-            border=ft.border.all(1, "#313244"),
+            border=ft.border.all(1, self._c("#e5e7eb", "#313244")),
             border_radius=8,
-            bgcolor="#181825",
+            bgcolor=self._c("#f9fafb", "#181825"),
             height=200,
         )
 
         mode_section = ft.Column(
             [
-                ft.Text(self.lang_manager.get_text("mode"), weight=ft.FontWeight.BOLD, color="#cdd6f4"),
+                ft.Text(self.lang_manager.get_text("mode"), weight=ft.FontWeight.BOLD, color=self._c("#111827", "#cdd6f4")),
                 ft.RadioGroup(
                     ref=self.mode_radio,
                     value="CRF",
@@ -135,15 +138,15 @@ class CompressTab:
                     width=200,
                     border_color="#6366f1",
                     focused_border_color="#818cf8",
-                    color="#cdd6f4",
-                    bgcolor="#1e1e2e",
+                    color=self._c("#1e1e2e", "#cdd6f4"),
+                    bgcolor=self._c("#ffffff", "#1e1e2e"),
                 ),
             ],
             spacing=6,
         )
 
         preset_row = ft.Row([
-            ft.Text(self.lang_manager.get_text("presets"), width=120, color="#cdd6f4"),
+            ft.Text(self.lang_manager.get_text("presets"), width=120, color=self._c("#1e1e2e", "#cdd6f4")),
             ft.Dropdown(
                 ref=self.preset_dropdown,
                 width=600,
@@ -151,8 +154,8 @@ class CompressTab:
                 options=[ft.dropdown.Option(k, k) for k in preset_options],
                 border_color="#6366f1",
                 focused_border_color="#818cf8",
-                color="#cdd6f4",
-                bgcolor="#1e1e2e",
+                color=self._c("#1e1e2e", "#cdd6f4"),
+                bgcolor=self._c("#ffffff", "#1e1e2e"),
             )
         ], wrap=True)
 
@@ -171,9 +174,9 @@ class CompressTab:
                     width=700,
                     visible=True,
                     color="#6366f1",
-                    bgcolor="#313244",
+                    bgcolor=self._c("#e5e7eb", "#313244"),
                 ),
-                ft.Text(ref=self.status_text, value=self.lang_manager.get_text("idle"), color="#a6adc8"),
+                ft.Text(ref=self.status_text, value=self.lang_manager.get_text("idle"), color=self._c("#374151", "#a6adc8")),
             ],
             spacing=6,
         )
