@@ -20,6 +20,7 @@ class RenamerTab:
         # Refs
         self.dir_field = ft.Ref[ft.TextField]()
         self.regex_field = ft.Ref[ft.TextField]()
+        self.pattern_select = ft.Ref[ft.Dropdown]()
         self.template_field = ft.Ref[ft.TextField]()
         self.use_parsed_radio = ft.Ref[ft.RadioGroup]()
         self.start_season = ft.Ref[ft.TextField]()
@@ -48,6 +49,28 @@ class RenamerTab:
                           tooltip=self.lang_manager.get_text("choose_folder"),
                           on_click=self._open_dir_dialog)
         ], wrap=True, spacing=10)
+
+        # Simple pattern selector to avoid writing regex manually
+        pattern_items = [
+            ft.dropdown.Option("SxxEyy"),
+            ft.dropdown.Option("Sxx-Eyy"),
+            ft.dropdown.Option("1x02"),
+        ]
+
+        def on_pattern_change(e):
+            mapping = {
+                "SxxEyy": r"S(?P<season>\d{1,2})E(?P<episode>\d{2})(?P<part>[A-Za-z])?",
+                "Sxx-Eyy": r"S(?P<season>\d{1,2})[-_ ]?E(?P<episode>\d{2})(?P<part>[A-Za-z])?",
+                "1x02": r"(?P<season>\d{1,2})x(?P<episode>\d{2})(?P<part>[A-Za-z])?",
+            }
+            choice = self.pattern_select.current.value
+            self.regex_field.current.value = mapping.get(choice, DEFAULT_REGEX)
+            self.page.update()
+
+        pattern_row = ft.Row([
+            ft.Dropdown(ref=self.pattern_select, label=self.lang_manager.get_text("pattern"),
+                        options=pattern_items, value="SxxEyy", width=240, on_change=on_pattern_change),
+        ])
 
         regex_row = ft.Row([
             ft.TextField(ref=self.regex_field, width=500, label=self.lang_manager.get_text("identifier_regex"),
@@ -108,6 +131,8 @@ class RenamerTab:
             ft.Container(height=10),
             dir_row,
             ft.Container(height=10),
+            pattern_row,
+            ft.Container(height=6),
             regex_row,
             ft.Container(height=10),
             template_row,
