@@ -1,32 +1,32 @@
 {
-  "version": "0.2.0",
-  "configurations": [
-    {
-      "name": "Run H266VideoConverter (venv)",
-      "type": "python",
-      "request": "launch",
-      "program": "${workspaceFolder}/main.py",
-      "python": "${workspaceFolder}/venv/bin/python",
-      "cwd": "${workspaceFolder}",
-      "console": "integratedTerminal",
-      "justMyCode": true,
-      "env": {
-        "PYTHONUNBUFFERED": "1"
-      },
-      "args": []
-    },
-    {
-      "name": "Run H266VideoConverter",
-      "type": "python",
-      "request": "launch",
-      "program": "${workspaceFolder}/main.py",
-      "cwd": "${workspaceFolder}",
-      "console": "integratedTerminal",
-      "justMyCode": true,
-      "env": {
-        "PYTHONUNBUFFERED": "1"
-      },
-      "args": []
-    }
-  ]
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run H266VideoConverter (venv)",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/main.py",
+            "python": "${workspaceFolder}/venv/bin/python",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "PYTHONUNBUFFERED": "1"
+            },
+            "args": []
+        },
+        {
+            "name": "Run H266VideoConverter",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/main.py",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "PYTHONUNBUFFERED": "1"
+            },
+            "args": []
+        }
+    ]
 }
