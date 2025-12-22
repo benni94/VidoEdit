@@ -31,7 +31,7 @@ except ImportError:
         print(f"  {sys.executable} -m pip install flet\n")
         sys.exit(1)
 
-from tabs import ConvertTab, CompressTab
+from tabs import ConvertTab, CompressTab, MergeTab, RenamerTab
 from language_manager import LanguageManager
 from settings_dialog import SettingsDialog
 
@@ -83,7 +83,8 @@ class H266VideoConverterApp:
         self.convert_tab = ConvertTab(self.page, self.lang_manager)
         self.compress_tab = CompressTab(self.page, self.lang_manager)
         # Add more tabs here in the future:
-        # self.another_tab = AnotherTab(self.page)
+        self.merge_tab = MergeTab(self.page, self.lang_manager)
+        self.renamer_tab = RenamerTab(self.page, self.lang_manager)
     
     def _build_ui(self):
         """Build the main UI with tabs"""
@@ -125,6 +126,8 @@ class H266VideoConverterApp:
             tabs=[
                 ft.Tab(text=self.lang_manager.get_text("tab_convert"), content=self.convert_tab.build()),
                 ft.Tab(text=self.lang_manager.get_text("tab_compress"), content=self.compress_tab.build()),
+                ft.Tab(text=self.lang_manager.get_text("merge_videos") if hasattr(self.lang_manager, 'get_text') else "Merge Videos", content=self.merge_tab.build()),
+                ft.Tab(text=self.lang_manager.get_text("renamer") if hasattr(self.lang_manager, 'get_text') else "Renamer", content=self.renamer_tab.build()),
             ],
             expand=1,
         )
