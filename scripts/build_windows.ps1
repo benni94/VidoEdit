@@ -23,7 +23,7 @@ if (!(Test-Path $PNG)) {
 
 Write-Output "Installing dependencies if missing..."
 & $Python -m pip show flet | Out-Null; if ($LASTEXITCODE -ne 0) { & $Python -m pip install flet }
-& $Python -m pip show pillow | Out-Null; if ($LASTEXITCODE -ne 0) { & $Python -m pip install pillow }
+& $Python -m pip show pyinstaller | Out-Null; if ($LASTEXITCODE -ne 0) { & $Python -m pip install pyinstaller }
 
 Write-Output "Generating .ico from PNG..."
 & $Python (Join-Path $ROOT "scripts/make_ico.py")
@@ -34,9 +34,9 @@ if (!(Test-Path $ICO)) {
 
 Write-Output "Packing Windows app..."
 Push-Location $ROOT
-flet pack main.py `
+& $Python -m flet.cli pack main.py `
   --name "VidoEdit" `
   --icon $ICO
 Pop-Location
 
-Write-Output "`n✓ Build complete. Check the dist/ folder for the installer/exe."
+Write-Output "`nBuild complete. Check the dist/ folder for the installer/exe."
