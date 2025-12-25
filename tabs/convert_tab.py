@@ -8,6 +8,7 @@ import queue
 from pathlib import Path
 
 import flet as ft
+from ffmpeg_utils import get_ffmpeg_path, get_ffprobe_path
 
 try:
     from flet import icons
@@ -363,7 +364,7 @@ class ConvertTab:
     def _get_video_duration(self, input_file):
         try:
             cmd = [
-                "ffprobe", "-v", "error",
+                get_ffprobe_path(), "-v", "error",
                 "-show_entries", "format=duration",
                 "-of", "default=noprint_wrappers=1:nokey=1",
                 input_file,
@@ -395,7 +396,7 @@ class ConvertTab:
         duration = self._get_video_duration(input_file)
 
         cmd = [
-            "ffmpeg", "-i", input_file,
+            get_ffmpeg_path(), "-i", input_file,
             "-c:v", vcodec,
             "-preset", "medium",
             "-crf", "23",

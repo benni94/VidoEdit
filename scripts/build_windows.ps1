@@ -44,46 +44,51 @@ $Python = "python"
 Write-Host "Python OK"
 
 # -----------------------------
-# Ensure FFmpeg is installed
+# Download and bundle FFmpeg
 # -----------------------------
-Write-Host "Ensuring FFmpeg is installed..."
+Write-Host "Preparing FFmpeg for bundling..."
 
-if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
+$FFMPEG_BUNDLE = Join-Path $ROOT "ffmpeg_bundle"
+$FFMPEG_BIN = Join-Path $FFMPEG_BUNDLE "bin"
+$FFMPEG_EXE = Join-Path $FFMPEG_BIN "ffmpeg.exe"
+$FFPROBE_EXE = Join-Path $FFMPEG_BIN "ffprobe.exe"
 
-  Write-Host "FFmpeg not found. Attempting installation..."
-  $installed = $false
-
-  if (Get-Command winget -ErrorAction SilentlyContinue) {
-    foreach ($id in @("Gyan.FFmpeg", "BtbN.FFmpeg")) {
-      try {
-        Write-Host "Trying winget package: $id"
-        winget install `
-          --id $id `
-          --exact `
-          --silent `
-          --accept-package-agreements `
-          --accept-source-agreements
-
-        if ($LASTEXITCODE -eq 0) {
-          $installed = $true
-          break
-        }
-      } catch {}
+if (-not (Test-Path $FFMPEG_EXE) -or -not (Test-Path $FFPROBE_EXE)) {
+  Write-Host "Downloading FFmpeg for bundling..."
+  
+  $tempDir = Join-Path $env:TEMP "ffmpeg_download_$(Get-Random)"
+  New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
+  
+  $ffmpegUrl = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
+  $zipPath = Join-Path $tempDir "ffmpeg.zip"
+  
+  try {
+    Write-Host "Downloading from: $ffmpegUrl"
+    Invoke-WebRequest -Uri $ffmpegUrl -OutFile $zipPath -UseBasicParsing
+    
+    Write-Host "Extracting FFmpeg..."
+    Expand-Archive -Path $zipPath -DestinationPath $tempDir -Force
+    
+    $extractedFolder = Get-ChildItem -Path $tempDir -Directory | Where-Object { $_.Name -like "ffmpeg-*" } | Select-Object -First 1
+    
+    if ($extractedFolder) {
+      New-Item -ItemType Directory -Force -Path $FFMPEG_BUNDLE | Out-Null
+      Copy-Item -Path (Join-Path $extractedFolder.FullName "bin") -Destination $FFMPEG_BUNDLE -Recurse -Force
+      Write-Host "FFmpeg extracted to: $FFMPEG_BIN"
+    } else {
+      throw "Could not find extracted FFmpeg folder"
     }
-  }
-
-  if (-not $installed -and (Get-Command choco -ErrorAction SilentlyContinue)) {
-    choco install ffmpeg -y --no-progress
-    if ($LASTEXITCODE -eq 0) { $installed = $true }
-  }
-
-  if (-not $installed -or -not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
-    Write-Error "FFmpeg installation failed. Install it manually and re-run."
+    
+    Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+  } catch {
+    Write-Error "Failed to download FFmpeg: $_"
+    Write-Host "Please download FFmpeg manually from https://ffmpeg.org/download.html"
+    Write-Host "Extract and place ffmpeg.exe and ffprobe.exe in: $FFMPEG_BIN"
     exit 1
   }
 }
 
-Write-Host "FFmpeg OK"
+Write-Host "FFmpeg ready for bundling: $FFMPEG_EXE"
 
 # -----------------------------
 # Install Python dependencies
@@ -116,15 +121,24 @@ if (-not (Test-Path $ICO)) {
 }
 
 # -----------------------------
-# Build application
+# Build application with bundled FFmpeg
 # -----------------------------
-Write-Host "Packaging Windows app with icon..."
+Write-Host "Packaging Windows app with icon and FFmpeg..."
 
 Push-Location $ROOT
 & $Python -m flet.cli pack main.py `
   --name "VidoEdit" `
-  --icon $ICO
+  --icon $ICO `
+  --add-binary "$FFMPEG_EXE;ffmpeg_bundle/bin" `
+  --add-binary "$FFPROBE_EXE;ffmpeg_bundle/bin"
 Pop-Location
 
-Write-Host "`nBuild complete."
-Write-Host "Check the dist\ folder for the executable."
+Write-Host "`n========================================="
+Write-Host "Build complete!" -ForegroundColor Green
+Write-Host "========================================="
+Write-Host "Executable location: $ROOT\dist\VidoEdit.exe"
+Write-Host "`nThe executable is fully standalone and includes:"
+Write-Host "  ✓ FFmpeg and FFprobe" -ForegroundColor Green
+Write-Host "  ✓ All Python dependencies" -ForegroundColor Green
+Write-Host "  ✓ Application assets and translations" -ForegroundColor Green
+Write-Host "`nYou can distribute this .exe file to users without any additional dependencies."

@@ -6,6 +6,7 @@ import flet as ft
 import re
 import shlex
 import shutil
+from ffmpeg_utils import get_ffmpeg_path
 
 try:
     from flet import icons
@@ -423,7 +424,7 @@ def ensure_ffmpeg() -> bool:
     return shutil.which('ffmpeg') is not None
 
 def build_ffmpeg_concat_command(inputs, output, reencode=True, target_w=512, target_h=384, target_fps='24000/1001', target_sr=48000, target_layout='stereo'):
-    args = ['ffmpeg', '-hide_banner', '-y']
+    args = [get_ffmpeg_path(), '-hide_banner', '-y']
     for inp in inputs:
         args += ['-i', inp]
     n = len(inputs)

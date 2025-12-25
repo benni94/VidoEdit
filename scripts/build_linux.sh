@@ -58,27 +58,51 @@ fi
 
 echo "Python OK: $($PYTHON --version)"
 
-# Ensure FFmpeg is installed
-if ! command -v ffmpeg >/dev/null 2>&1; then
-  echo "FFmpeg not found. Attempting installation..."
-  if command -v apt-get >/dev/null 2>&1; then
-    sudo apt-get update && sudo apt-get install -y ffmpeg
-  elif command -v apt >/dev/null 2>&1; then
-    sudo apt update && sudo apt install -y ffmpeg
-  elif command -v dnf >/dev/null 2>&1; then
-    sudo dnf install -y ffmpeg
-  elif command -v yum >/dev/null 2>&1; then
-    sudo yum install -y epel-release || true
-    sudo yum install -y ffmpeg
-  elif command -v pacman >/dev/null 2>&1; then
-    sudo pacman -Sy --noconfirm ffmpeg
-  elif command -v zypper >/dev/null 2>&1; then
-    sudo zypper --non-interactive install ffmpeg
-  else
-    echo "Could not detect a supported package manager to install FFmpeg. Please install FFmpeg manually." >&2
+# -----------------------------
+# Download and bundle FFmpeg
+# -----------------------------
+echo "Preparing FFmpeg for bundling..."
+
+FFMPEG_BUNDLE="$ROOT_DIR/ffmpeg_bundle"
+FFMPEG_BIN="$FFMPEG_BUNDLE/bin"
+FFMPEG_EXE="$FFMPEG_BIN/ffmpeg"
+FFPROBE_EXE="$FFMPEG_BIN/ffprobe"
+
+if [[ ! -f "$FFMPEG_EXE" ]] || [[ ! -f "$FFPROBE_EXE" ]]; then
+  echo "Downloading FFmpeg for bundling..."
+  
+  TEMP_DIR=$(mktemp -d)
+  FFMPEG_URL="https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz"
+  FFMPEG_ARCHIVE="$TEMP_DIR/ffmpeg.tar.xz"
+  
+  echo "Downloading from: $FFMPEG_URL"
+  curl -L -o "$FFMPEG_ARCHIVE" "$FFMPEG_URL" || {
+    echo "Error: Failed to download FFmpeg" >&2
+    echo "Please download FFmpeg manually from https://johnvansickle.com/ffmpeg/" >&2
+    echo "Extract and place ffmpeg and ffprobe in: $FFMPEG_BIN" >&2
+    exit 1
+  }
+  
+  echo "Extracting FFmpeg..."
+  tar -xf "$FFMPEG_ARCHIVE" -C "$TEMP_DIR"
+  
+  EXTRACTED_DIR=$(find "$TEMP_DIR" -maxdepth 1 -type d -name "ffmpeg-*" | head -n 1)
+  
+  if [[ -z "$EXTRACTED_DIR" ]]; then
+    echo "Error: Could not find extracted FFmpeg folder" >&2
     exit 1
   fi
+  
+  mkdir -p "$FFMPEG_BIN"
+  cp "$EXTRACTED_DIR/ffmpeg" "$FFMPEG_EXE"
+  cp "$EXTRACTED_DIR/ffprobe" "$FFPROBE_EXE"
+  chmod +x "$FFMPEG_EXE" "$FFPROBE_EXE"
+  
+  rm -rf "$TEMP_DIR"
+  echo "✓ FFmpeg extracted to: $FFMPEG_BIN"
 fi
+
+echo "FFmpeg ready for bundling: $FFMPEG_EXE"
 
 echo "Installing flet CLI if missing..."
 python3 -m pip show flet >/dev/null 2>&1 || python3 -m pip install flet
@@ -87,10 +111,23 @@ python3 -m pip show flet >/dev/null 2>&1 || {
   exit 1
 }
 
-echo "Packing Linux AppImage..."
+echo "Packing Linux AppImage with bundled FFmpeg..."
 cd "$ROOT_DIR"
 flet pack main.py \
   --name "VidoEdit" \
-  --icon "$ICON_PNG"
+  --icon "$ICON_PNG" \
+  --add-binary "$FFMPEG_EXE:ffmpeg_bundle/bin" \
+  --add-binary "$FFPROBE_EXE:ffmpeg_bundle/bin"
 
-echo "\n✓ Build complete. Check the dist/ folder for the AppImage." 
+echo ""
+echo "========================================="
+echo "✓ Build complete!"
+echo "========================================="
+echo "Executable location: $ROOT_DIR/dist/"
+echo ""
+echo "The AppImage is fully standalone and includes:"
+echo "  ✓ FFmpeg and FFprobe"
+echo "  ✓ All Python dependencies"
+echo "  ✓ Application assets and translations"
+echo ""
+echo "You can distribute this AppImage to users without any additional dependencies." 

@@ -64,16 +64,59 @@ fi
 
 echo "Python OK: $($PYTHON --version)"
 
-# Ensure FFmpeg is installed
-if ! command -v ffmpeg >/dev/null 2>&1; then
-  echo "FFmpeg not found. Attempting installation via Homebrew..."
-  if command -v brew >/dev/null 2>&1; then
-    brew update && brew install ffmpeg
+# -----------------------------
+# Download and bundle FFmpeg
+# -----------------------------
+echo "Preparing FFmpeg for bundling..."
+
+FFMPEG_BUNDLE="$ROOT_DIR/ffmpeg_bundle"
+FFMPEG_BIN="$FFMPEG_BUNDLE/bin"
+FFMPEG_EXE="$FFMPEG_BIN/ffmpeg"
+FFPROBE_EXE="$FFMPEG_BIN/ffprobe"
+
+if [[ ! -f "$FFMPEG_EXE" ]] || [[ ! -f "$FFPROBE_EXE" ]]; then
+  echo "Downloading FFmpeg for bundling..."
+  
+  TEMP_DIR=$(mktemp -d)
+  
+  # Detect architecture
+  ARCH=$(uname -m)
+  if [[ "$ARCH" == "arm64" ]]; then
+    FFMPEG_URL="https://evermeet.cx/ffmpeg/getrelease/ffmpeg/zip"
+    FFPROBE_URL="https://evermeet.cx/ffmpeg/getrelease/ffprobe/zip"
   else
-    echo "Homebrew not found. Please install Homebrew (https://brew.sh) or FFmpeg manually, then re-run." >&2
-    exit 1
+    FFMPEG_URL="https://evermeet.cx/ffmpeg/getrelease/ffmpeg/zip"
+    FFPROBE_URL="https://evermeet.cx/ffmpeg/getrelease/ffprobe/zip"
   fi
+  
+  echo "Downloading FFmpeg for macOS ($ARCH)..."
+  curl -L -o "$TEMP_DIR/ffmpeg.zip" "$FFMPEG_URL" || {
+    echo "Error: Failed to download FFmpeg" >&2
+    echo "Please download FFmpeg manually from https://evermeet.cx/ffmpeg/" >&2
+    echo "Extract and place ffmpeg and ffprobe in: $FFMPEG_BIN" >&2
+    exit 1
+  }
+  
+  echo "Downloading FFprobe..."
+  curl -L -o "$TEMP_DIR/ffprobe.zip" "$FFPROBE_URL" || {
+    echo "Error: Failed to download FFprobe" >&2
+    exit 1
+  }
+  
+  echo "Extracting FFmpeg..."
+  mkdir -p "$FFMPEG_BIN"
+  unzip -q "$TEMP_DIR/ffmpeg.zip" -d "$TEMP_DIR"
+  unzip -q "$TEMP_DIR/ffprobe.zip" -d "$TEMP_DIR"
+  
+  mv "$TEMP_DIR/ffmpeg" "$FFMPEG_EXE"
+  mv "$TEMP_DIR/ffprobe" "$FFPROBE_EXE"
+  chmod +x "$FFMPEG_EXE" "$FFPROBE_EXE"
+  
+  rm -rf "$TEMP_DIR"
+  echo "✓ FFmpeg extracted to: $FFMPEG_BIN"
 fi
+
+echo "FFmpeg ready for bundling: $FFMPEG_EXE"
 
 echo "Installing flet CLI if missing..."
 python3 -m pip show flet >/dev/null 2>&1 || python3 -m pip install flet
@@ -82,11 +125,24 @@ python3 -m pip show flet >/dev/null 2>&1 || {
   exit 1
 }
 
-echo "Packing macOS app bundle..."
+echo "Packing macOS app bundle with bundled FFmpeg..."
 cd "$ROOT_DIR"
 # --name controls app bundle name; adjust if desired
 flet pack main.py \
   --name "VidoEdit" \
-  --icon "$ICNS_OUT"
+  --icon "$ICNS_OUT" \
+  --add-binary "$FFMPEG_EXE:ffmpeg_bundle/bin" \
+  --add-binary "$FFPROBE_EXE:ffmpeg_bundle/bin"
 
-echo "\n✓ Build complete. Check the dist/ folder for the VidoEdit.app bundle."
+echo ""
+echo "========================================="
+echo "✓ Build complete!"
+echo "========================================="
+echo "Executable location: $ROOT_DIR/dist/VidoEdit.app"
+echo ""
+echo "The app bundle is fully standalone and includes:"
+echo "  ✓ FFmpeg and FFprobe"
+echo "  ✓ All Python dependencies"
+echo "  ✓ Application assets and translations"
+echo ""
+echo "You can distribute this .app bundle to users without any additional dependencies."

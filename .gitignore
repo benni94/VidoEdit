@@ -6,3 +6,5 @@ __pycache__/
 venv/
 *.log
 VidoEdit.spec
+ffmpeg_bundle/
+VidoEdit_build.spec

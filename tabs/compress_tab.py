@@ -7,6 +7,7 @@ import queue
 from pathlib import Path
 
 import flet as ft
+from ffmpeg_utils import get_ffmpeg_path, get_ffprobe_path
 
 try:
     from flet import icons
@@ -227,7 +228,7 @@ class CompressTab:
     def _detect_gpu_encoder(self):
         try:
             encoders = subprocess.check_output(
-                ["ffmpeg", "-encoders"],
+                [get_ffmpeg_path(), "-encoders"],
                 stderr=subprocess.DEVNULL,
                 text=True,
             )
@@ -356,7 +357,7 @@ class CompressTab:
     def _get_duration_seconds(self, path):
         out = subprocess.check_output(
             [
-                "ffprobe", "-v", "error",
+                get_ffprobe_path(), "-v", "error",
                 "-show_entries", "format=duration",
                 "-of", "default=noprint_wrappers=1:nokey=1",
                 path,
@@ -408,7 +409,7 @@ class CompressTab:
         preset = self._preset_mapping.get(preset_key, {"crf": 23, "preset": "slow"})
 
         cmd = [
-            "ffmpeg", "-y",
+            get_ffmpeg_path(), "-y",
             "-i", input_file,
             "-map", "0",
             "-c:v", self._encoder,
