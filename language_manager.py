@@ -1,4 +1,4 @@
-"""Language Manager for H266VideoConverter"""
+"""Language Manager for VidoEdit"""
 import locale
 import json
 from pathlib import Path
@@ -44,7 +44,7 @@ class LanguageManager:
     def _migrate_old_config(self):
         """Migrate existing config from old app directory if present."""
         try:
-            old_config = Path.home() / ".h266videoconverter" / "config.json"
+            old_config = Path.home() / ".VidoEdit" / "config.json"
             if old_config.exists() and not self.CONFIG_FILE.exists():
                 self.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
                 data = {}

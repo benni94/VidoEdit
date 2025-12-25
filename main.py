@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-H266VideoConverter - Main Application
+VidoEdit - Main Application
 A modern, cross-platform desktop application for video conversion and compression.
 """
 import subprocess
@@ -42,7 +42,7 @@ except (ImportError, AttributeError):
     icons = None
 
 
-class H266VideoConverterApp:
+class VidoEditApp:
     """Main application class that manages all tabs"""
     
     def __init__(self, page: ft.Page):
@@ -75,18 +75,33 @@ class H266VideoConverterApp:
         saved_theme = self.lang_manager.get_theme_mode()
         self.page.theme_mode = ft.ThemeMode.DARK if saved_theme == "dark" else ft.ThemeMode.LIGHT
         
-        self.page.theme = ft.Theme(
-            color_scheme=ft.ColorScheme(
+        # Use different color schemes for dark vs light so text contrast is appropriate
+        if self.page.theme_mode == ft.ThemeMode.DARK:
+            color_scheme = ft.ColorScheme(
+                primary="#6366f1",
+                on_primary="#ffffff",
+                secondary="#8da2fb",
+                surface="#16161c",
+                on_surface="#eeeeee",
+                on_surface_variant="#ffffff",
+                background="#11111b",
+                on_background="#e5e5e5",
+            )
+            self.page.bgcolor = "#11111b"
+        else:
+            color_scheme = ft.ColorScheme(
                 primary="#6366f1",
                 on_primary="#ffffff",
                 secondary="#818cf8",
-                surface="#1e1e2e",
-                on_surface="#cdd6f4",
-                background="#11111b",
-                on_background="#cdd6f4",
+                surface="#ffffff",
+                on_surface="#1e1e2e",
+                on_surface_variant="#1e1e2e",
+                background="#ffffff",
+                on_background="#1e1e2e",
             )
-        )
-        self.page.bgcolor = "#11111b" if saved_theme == "dark" else "#ffffff"
+            self.page.bgcolor = "#ffffff"
+        
+        self.page.theme = ft.Theme(color_scheme=color_scheme)
     
     def _init_tabs(self):
         """Initialize all tab instances"""
@@ -96,8 +111,10 @@ class H266VideoConverterApp:
         self.merge_tab = MergeTab(self.page, self.lang_manager)
         self.renamer_tab = RenamerTab(self.page, self.lang_manager)
     
-    def _build_ui(self):
-        """Build the main UI with tabs"""
+    def _build_ui(self, selected_index: int = 0):
+        """Build the main UI with tabs
+        selected_index: which tab should be active after rebuild
+        """
         is_dark = self.page.theme_mode == ft.ThemeMode.DARK
         
         theme_button = ft.IconButton(
@@ -131,8 +148,10 @@ class H266VideoConverterApp:
         
         tabs = ft.Tabs(
             ref=self.tabs_ref,
-            selected_index=0,
+            selected_index=selected_index,
             animation_duration=250,
+            label_color="#ffffff" if is_dark else "#1e1e2e",
+            unselected_label_color="#ffffff" if is_dark else "#1e1e2e",
             tabs=[
                 ft.Tab(text=self.lang_manager.get_text("tab_convert"), content=self.convert_tab.build()),
                 ft.Tab(text=self.lang_manager.get_text("tab_compress"), content=self.compress_tab.build()),
@@ -148,18 +167,51 @@ class H266VideoConverterApp:
     
     def _toggle_theme(self, e):
         """Toggle between dark and light theme"""
+        current_index = 0
+        try:
+            if self.tabs_ref.current is not None:
+                current_index = int(self.tabs_ref.current.selected_index or 0)
+        except Exception:
+            current_index = 0
+        
         if self.page.theme_mode == ft.ThemeMode.DARK:
             self.page.theme_mode = ft.ThemeMode.LIGHT
             self.page.bgcolor = "#ffffff"
             self.lang_manager.set_theme_mode("light")
+            # Update color scheme for light mode
+            self.page.theme = ft.Theme(
+                color_scheme=ft.ColorScheme(
+                    primary="#6366f1",
+                    on_primary="#ffffff",
+                    secondary="#818cf8",
+                    surface="#ffffff",
+                    on_surface="#1e1e2e",
+                    on_surface_variant="#1e1e2e",
+                    background="#ffffff",
+                    on_background="#1e1e2e",
+                )
+            )
         else:
             self.page.theme_mode = ft.ThemeMode.DARK
             self.page.bgcolor = "#11111b"
             self.lang_manager.set_theme_mode("dark")
+            # Update color scheme for dark mode
+            self.page.theme = ft.Theme(
+                color_scheme=ft.ColorScheme(
+                    primary="#6366f1",
+                    on_primary="#ffffff",
+                    secondary="#8da2fb",
+                    surface="#16161c",
+                    on_surface="#eeeeee",
+                    on_surface_variant="#ffffff",
+                    background="#11111b",
+                    on_background="#e5e5e5",
+                )
+            )
         
         # Rebuild UI to update colors and icons
         self.page.controls.clear()
-        self._build_ui()
+        self._build_ui(selected_index=current_index)
     
     def _show_settings(self, e):
         """Show settings dialog"""
@@ -170,6 +222,13 @@ class H266VideoConverterApp:
     
     def _on_language_change(self):
         """Handle language change - rebuild UI"""
+        current_index = 0
+        try:
+            if self.tabs_ref.current is not None:
+                current_index = int(self.tabs_ref.current.selected_index or 0)
+        except Exception:
+            current_index = 0
+        
         if hasattr(self.page, 'dialog') and self.page.dialog:
             self.page.dialog.open = False
         
@@ -178,12 +237,12 @@ class H266VideoConverterApp:
         
         self.settings_dialog = SettingsDialog(self.page, self.lang_manager)
         
-        self._build_ui()
+        self._build_ui(selected_index=current_index)
 
 
 def main(page: ft.Page):
     """Entry point for the Flet application"""
-    app = H266VideoConverterApp(page)
+    app = VidoEditApp(page)
 
 
 if __name__ == "__main__":

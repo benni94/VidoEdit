@@ -1,4 +1,4 @@
-"""Settings Dialog for H266VideoConverter"""
+"""Settings Dialog for VidoEdit"""
 import flet as ft
 from language_manager import LanguageManager
 

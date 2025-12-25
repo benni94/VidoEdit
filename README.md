@@ -240,13 +240,13 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Author
 
-**Your Name**
+**Benjamin Fink**
 
 - GitHub: [@benni94](https://github.com/benni94)
 
 ## Support
 
-If you encounter any issues or have questions, please [open an issue](https://github.com/benni94/H266VideoConverter/issues) on GitHub.
+If you encounter any issues or have questions, please [open an issue](https://github.com/benni94/VidoEdit/issues) on GitHub.
 
 ---
 

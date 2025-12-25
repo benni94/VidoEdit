@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# macOS app bundling with custom icon for H266VideoConverter
+# macOS app bundling with custom icon for VidoEdit
 # Requirements:
 #   - macOS with Xcode Command Line Tools (for iconutil)
 #   - Python venv with flet installed (or global flet)

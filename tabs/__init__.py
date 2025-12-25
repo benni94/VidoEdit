@@ -1,4 +1,4 @@
-"""Tabs package for H266VideoConverter"""
+"""Tabs package for VidoEdit"""
 from .convert_tab import ConvertTab
 from .compress_tab import CompressTab
 from .merge_tab import MergeTab

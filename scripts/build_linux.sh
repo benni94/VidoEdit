@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Linux packaging script for H266VideoConverter using flet pack
+# Linux packaging script for VidoEdit using flet pack
 # Embeds PNG icon into the package (AppImage by default)
 # Requirements:
 #   - Linux

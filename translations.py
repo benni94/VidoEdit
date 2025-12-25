@@ -1,4 +1,4 @@
-"""Translation module for H266VideoConverter"""
+"""Translation module for VidoEdit"""
 
 TRANSLATIONS = {
     "en": {
