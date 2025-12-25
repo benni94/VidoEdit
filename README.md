@@ -18,44 +18,31 @@ VidoEdit is a modern, cross-platform desktop application for converting H.266/VV
 
 ## Screenshots
 
-![H266VideoConverter Interface](screenshot.png)
+![VidoEdit Interface](screenshot.png)
 
 ## Requirements
 
 - Python 3.13 or higher (important for Flet)
-- FFmpeg (must be installed and available in PATH)
+- FFmpeg
+
+Note: The provided build scripts for Windows, macOS, and Linux will attempt to auto-install FFmpeg (and Python where applicable) using the system package manager if they are not already present. You can still install FFmpeg manually if you prefer.
 
 ## Installation
 
-### 1. Install FFmpeg
+### 1. Install FFmpeg (optional if using build scripts)
 
-**macOS (using Homebrew):**
+The build scripts attempt to auto-install FFmpeg. If you want to install it manually:
 
-```bash
-brew install ffmpeg
-```
-
-**Windows (using Chocolatey):**
-
-```bash
-choco install ffmpeg
-```
-
-**Windows (manual):**
-Download from [ffmpeg.org](https://ffmpeg.org/download.html) and add to PATH
-
-**Linux (Ubuntu/Debian):**
-
-```bash
-sudo apt update
-sudo apt install ffmpeg
-```
+- macOS (Homebrew): `brew install ffmpeg`
+- Windows (winget): `winget install -e --id FFmpeg.FFmpeg --accept-package-agreements --accept-source-agreements`
+- Windows (Chocolatey): `choco install ffmpeg -y`
+- Linux (Debian/Ubuntu): `sudo apt update && sudo apt install -y ffmpeg`
 
 ### 2. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/H266VideoConverter.git
-cd H266VideoConverter
+git clone https://github.com/benni94/VidoEdit.git
+cd VidoEdit
 ```
 
 ### 3. Create Virtual Environment (Recommended)
@@ -122,7 +109,7 @@ The converter uses the following FFmpeg settings:
 ### File Structure
 
 ```
-H266VideoConverter/
+VidoEdit/
 ├── main.py                 # Main entry point
 ├── tabs/
 │   ├── __init__.py         # Package exports
@@ -179,13 +166,13 @@ python main.py
 
 #### Getting started: build matrix
 
-| OS | Prereqs | Command | Icon file used | Output |
-| --- | --- | --- | --- | --- |
-| macOS | Python, flet, Xcode CLT (iconutil, sips) | `scripts/build_macos.sh` | `attachments/vidoedit.icns` (generated) | `dist/H266VideoConverter.app` |
-| Windows | Python, flet, Pillow | `./scripts/build_windows.ps1` | `attachments/vidoedit.ico` (generated) | `dist/` installer/exe |
-| Linux | Python, flet | `scripts/build_linux.sh` | `attachments/vidoedit.png` | `dist/` AppImage |
+| OS      | Prereqs                                                                         | Command                       | Icon file used                          | Output              |
+| ------- | ------------------------------------------------------------------------------- | ----------------------------- | --------------------------------------- | ------------------- |
+| macOS   | Xcode CLT (iconutil, sips). Script ensures Python/FFmpeg via Homebrew if needed | `scripts/build_macos.sh`      | `attachments/vidoedit.icns` (generated) | `dist/VidoEdit.app` |
+| Windows | Script ensures Python via winget and FFmpeg via winget/Chocolatey if needed     | `./scripts/build_windows.ps1` | `attachments/vidoedit.ico` (generated)  | `dist/` executable  |
+| Linux   | Script attempts FFmpeg install via common package managers                      | `scripts/build_linux.sh`      | `attachments/vidoedit.png`              | `dist/` AppImage    |
 
-#### macOS (preferred: Flet pack)
+#### macOS (Flet pack)
 
 The Dock icon on macOS is taken from the app bundle and won’t change at runtime. Use the provided script to embed the icon and create a .app:
 
@@ -194,7 +181,7 @@ chmod +x scripts/build_macos.sh
 scripts/build_macos.sh
 ```
 
-Output: `dist/H266VideoConverter.app` with your custom icon.
+Output: `dist/VidoEdit.app` with your custom icon.
 
 #### Windows (Flet pack)
 
@@ -204,7 +191,7 @@ Use the PowerShell script to convert the PNG to ICO and pack the app:
 ./scripts/build_windows.ps1
 ```
 
-Output: look in `dist/` for the installer/exe with your icon.
+Output: look in `dist/` for the executable with your icon.
 
 #### Linux (Flet pack)
 

@@ -43,6 +43,38 @@ fi
 
 echo "✓ Generated icon: $ICNS_OUT"
 
+# -----------------------------
+# Ensure Python is installed
+# -----------------------------
+if command -v python3 >/dev/null 2>&1; then
+  PYTHON=python3
+else
+  echo "Python not found. Attempting installation via Homebrew..."
+
+  if ! command -v brew >/dev/null 2>&1; then
+    echo "Homebrew not found. Install it first: https://brew.sh" >&2
+    exit 1
+  fi
+
+  brew update
+  brew install python
+
+  PYTHON=python3
+fi
+
+echo "Python OK: $($PYTHON --version)"
+
+# Ensure FFmpeg is installed
+if ! command -v ffmpeg >/dev/null 2>&1; then
+  echo "FFmpeg not found. Attempting installation via Homebrew..."
+  if command -v brew >/dev/null 2>&1; then
+    brew update && brew install ffmpeg
+  else
+    echo "Homebrew not found. Please install Homebrew (https://brew.sh) or FFmpeg manually, then re-run." >&2
+    exit 1
+  fi
+fi
+
 echo "Installing flet CLI if missing..."
 python3 -m pip show flet >/dev/null 2>&1 || python3 -m pip install flet
 python3 -m pip show flet >/dev/null 2>&1 || {
