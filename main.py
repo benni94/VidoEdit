@@ -153,8 +153,8 @@ class VidoEditApp:
             label_color="#ffffff" if is_dark else "#1e1e2e",
             unselected_label_color="#ffffff" if is_dark else "#1e1e2e",
             tabs=[
-                ft.Tab(text=self.lang_manager.get_text("tab_convert"), content=self.convert_tab.build()),
                 ft.Tab(text=self.lang_manager.get_text("tab_compress"), content=self.compress_tab.build()),
+                ft.Tab(text=self.lang_manager.get_text("tab_convert"), content=self.convert_tab.build()),
                 ft.Tab(text=self.lang_manager.get_text("merge_videos") if hasattr(self.lang_manager, 'get_text') else "Merge Videos", content=self.merge_tab.build()),
                 ft.Tab(text=self.lang_manager.get_text("renamer") if hasattr(self.lang_manager, 'get_text') else "Renamer", content=self.renamer_tab.build()),
             ],
