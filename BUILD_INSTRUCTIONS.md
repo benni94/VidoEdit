@@ -2,6 +2,49 @@
 
 All build scripts automatically bundle FFmpeg and all required dependencies into standalone executables.
 
+## Prerequisites
+
+### Python Environment Setup
+
+Before building, ensure you have the correct Python environment set up:
+
+1. **Python Version**: Python 3.13 or compatible version
+2. **Install Dependencies**: Use the provided `requirements.txt` to install exact package versions
+
+   ```bash
+   # Create a virtual environment (recommended)
+   python -m venv venv
+
+   # Activate the virtual environment
+   # Windows:
+   .\venv\Scripts\activate
+   # Linux/macOS:
+   source venv/bin/activate
+
+   # Install all dependencies with pinned versions
+   pip install -r requirements.txt
+   ```
+
+3. **Key Dependencies**:
+   - `flet==0.28.3` - UI framework
+   - `pyinstaller==6.17.0` - Executable builder
+   - `pillow==12.0.0` - Image processing
+   - All other dependencies are listed in `requirements.txt`
+
+### Running from Source (Development)
+
+To run the application without building:
+
+```bash
+# With terminal (for debugging)
+python main.py
+
+# Without terminal window (Windows only)
+pythonw VidoEdit.pyw
+```
+
+---
+
 ## What's Included in All Builds
 
 - ✅ **FFmpeg and FFprobe** - Automatically downloaded and bundled
