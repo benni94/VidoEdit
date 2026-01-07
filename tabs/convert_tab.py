@@ -34,6 +34,10 @@ class ConvertTab:
         self.progress_text = ft.Ref[ft.Text]()
         self.start_button_ref = ft.Ref[ft.ElevatedButton]()
         self.cancel_button_ref = ft.Ref[ft.ElevatedButton]()
+        self.open_folder_button_ref = ft.Ref[ft.ElevatedButton]()
+        
+        # Track output directory
+        self._output_dir = None
         
         # State
         self._task_queue: "queue.Queue[str]" = queue.Queue()
@@ -137,6 +141,14 @@ class ConvertTab:
                     icon=icons.CLOSE if icons else "close",
                     on_click=self._cancel_conversion,
                     style=ft.ButtonStyle(color="#ffffff", bgcolor="#f97316"),
+                    visible=False,
+                ),
+                ft.ElevatedButton(
+                    ref=self.open_folder_button_ref,
+                    text=self.lang_manager.get_text("open_output_folder") if hasattr(self.lang_manager, 'get_text') else "Open Output Folder",
+                    icon=icons.FOLDER_OPEN if icons else "folder_open",
+                    on_click=self._open_output_folder,
+                    style=ft.ButtonStyle(color="#ffffff", bgcolor="#6366f1"),
                     visible=False,
                 ),
             ],
@@ -298,12 +310,15 @@ class ConvertTab:
 
     def _cancel_conversion(self, e):
         self._cancel_requested = True
-        self.progress_text.current.value = "Cancelling..."
+        if self._current_process:
+            self._current_process.terminate()
+        self._output_dir = None
         try:
             if self._current_process is not None:
                 self._current_process.kill()
         except Exception:
             pass
+        self.progress_text.current.value = "Cancelling..."
         self.page.update()
     
     def _log(self, message, color=None):
@@ -345,6 +360,11 @@ class ConvertTab:
                         elif msg[0] == "idle":
                             self.start_button_ref.current.visible = True
                             self.cancel_button_ref.current.visible = False
+                            # Show open folder button if output directory exists
+                            if self._output_dir and os.path.exists(self._output_dir):
+                                self.open_folder_button_ref.current.visible = True
+                            else:
+                                self.open_folder_button_ref.current.visible = False
                             self.queue_list.current.controls.clear()
                             updated = True
                         elif msg[0] == "clear_log":
@@ -390,7 +410,21 @@ class ConvertTab:
         replace = self.replace_checkbox.current.value
         codec = self.codec_dropdown.current.value
 
-        tmp_file = input_file + ".tmp" if replace else os.path.splitext(input_file)[0] + f"_{codec}.mkv"
+        # Create 'edited' subfolder in the same directory as input file
+        input_dir = os.path.dirname(input_file)
+        output_dir = os.path.join(input_dir, "edited")
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # Store output directory for opening later
+        if self._output_dir is None:
+            self._output_dir = output_dir
+        
+        # Get filename without path and create output path without prefix
+        filename = os.path.basename(input_file)
+        name, ext = os.path.splitext(filename)
+        output_file = os.path.join(output_dir, f"{name}.mkv")
+        
+        tmp_file = input_file + ".tmp" if replace else output_file
         vcodec = "libx265" if codec == "h265" else "libx264"
 
         duration = self._get_video_duration(input_file)
@@ -441,7 +475,7 @@ class ConvertTab:
                     os.replace(tmp_file, input_file)
                     self._log(f"✓ Original ersetzt: {os.path.basename(input_file)}", "#22c55e")
                 else:
-                    self._log(f"✓ Gespeichert als: {os.path.basename(tmp_file)}", "#22c55e")
+                    self._log(f"✓ Gespeichert: {os.path.basename(output_file)}", "#22c55e")
             else:
                 self._log(f"✗ Fehler bei: {os.path.basename(input_file)}", "#ef4444")
                 if replace and os.path.exists(tmp_file):
@@ -450,14 +484,27 @@ class ConvertTab:
         except FileNotFoundError:
             self._log("✗ FFmpeg nicht gefunden! Bitte installiere FFmpeg.", "#ef4444")
 
+    def _open_output_folder(self, e):
+        """Open the output directory in file explorer"""
+        if self._output_dir and os.path.exists(self._output_dir):
+            if platform.system() == "Windows":
+                os.startfile(self._output_dir)
+            elif platform.system() == "Darwin":  # macOS
+                subprocess.Popen(["open", self._output_dir])
+            else:  # Linux
+                subprocess.Popen(["xdg-open", self._output_dir])
+    
     def _start_conversion(self, e):
         if self._task_queue.empty():
             self._log(self.lang_manager.get_text("queue_empty"), "#ef4444")
             return
-
+        
+        # Reset output directory
+        self._output_dir = None
         self._cancel_requested = False
         self.start_button_ref.current.visible = False
         self.cancel_button_ref.current.visible = True
+        self.open_folder_button_ref.current.visible = False
         self._ui_queue.put(("clear_log",))
         self._ui_queue.put(("log", self.lang_manager.get_text("conversion_started"), "#6366f1"))
         self._ui_queue.put(("progress", 0, self.lang_manager.get_text("starting")))

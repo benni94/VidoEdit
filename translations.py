@@ -70,6 +70,7 @@ TRANSLATIONS = {
         "conversion_cancelled": "Conversion cancelled.",
         "done": "✓ Done! {count} files converted",
         "conversion_complete": "\n=== Conversion complete! ({count} files) ===",
+        "open_output_folder": "Open Output Folder",
         
         # Compress Tab
         "encoder": "Encoder:",
@@ -162,6 +163,7 @@ TRANSLATIONS = {
         "conversion_cancelled": "Konvertierung abgebrochen.",
         "done": "✓ Fertig! {count} Dateien konvertiert",
         "conversion_complete": "\n=== Konvertierung abgeschlossen! ({count} Dateien) ===",
+        "open_output_folder": "Ausgabeordner öffnen",
         
         # Compress Tab
         "encoder": "Encoder:",

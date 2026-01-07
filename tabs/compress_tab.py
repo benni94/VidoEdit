@@ -1,4 +1,5 @@
 """Compress Tab - GPU-accelerated video compression"""
+import os
 import subprocess
 import platform
 import threading
@@ -41,6 +42,10 @@ class CompressTab:
         self.status_text = ft.Ref[ft.Text]()
         self.start_button_ref = ft.Ref[ft.ElevatedButton]()
         self.cancel_button_ref = ft.Ref[ft.ElevatedButton]()
+        self.open_folder_button_ref = ft.Ref[ft.ElevatedButton]()
+        
+        # Track output directory
+        self._output_dir = None
         
         # State
         self._task_queue: "queue.Queue[str]" = queue.Queue()
@@ -200,6 +205,14 @@ class CompressTab:
                     style=ft.ButtonStyle(color="#ffffff", bgcolor="#f97316"),
                     visible=False,
                 ),
+                ft.ElevatedButton(
+                    ref=self.open_folder_button_ref,
+                    text=self.lang_manager.get_text("open_output_folder") if hasattr(self.lang_manager, 'get_text') else "Open Output Folder",
+                    icon=icons.FOLDER_OPEN if icons else "folder_open",
+                    on_click=self._open_output_folder,
+                    style=ft.ButtonStyle(color="#ffffff", bgcolor="#6366f1"),
+                    visible=False,
+                ),
             ],
             spacing=10,
         )
@@ -343,17 +356,7 @@ class CompressTab:
         self.progress_text.current.value = "Idle"
         self.status_text.current.value = "Idle"
         self.page.update()
-
-    def _cancel_compress(self, e):
-        self._cancel_requested = True
-        self.status_text.current.value = "Cancelling..."
-        try:
-            if self._current_process is not None:
-                self._current_process.kill()
-        except Exception:
-            pass
-        self.page.update()
-
+    
     def _get_duration_seconds(self, path):
         out = subprocess.check_output(
             [
@@ -371,20 +374,42 @@ class CompressTab:
         total_kbps = target_bits / duration / 1000
         return max(int(total_kbps), 500)
 
+    def _open_output_folder(self, e):
+        """Open the output directory in file explorer"""
+        if self._output_dir and os.path.exists(self._output_dir):
+            if platform.system() == "Windows":
+                os.startfile(self._output_dir)
+            elif platform.system() == "Darwin":  # macOS
+                subprocess.Popen(["open", self._output_dir])
+            else:  # Linux
+                subprocess.Popen(["xdg-open", self._output_dir])
+    
     def _start_compress(self, e):
         if self._task_queue.empty():
             self.status_text.current.value = "Queue is empty"
             self.page.update()
             return
 
+        # Reset output directory
+        self._output_dir = None
         self._cancel_requested = False
         self.start_button_ref.current.visible = False
         self.cancel_button_ref.current.visible = True
+        self.open_folder_button_ref.current.visible = False
         self.progress_text.current.value = "Starting..."
         self.status_text.current.value = "Starting..."
         self.page.update()
 
         threading.Thread(target=self._compress_worker, daemon=True).start()
+    
+    def _cancel_compress(self, e):
+        self._cancel_requested = True
+        self._output_dir = None
+        if self._current_process:
+            try:
+                self._current_process.kill()
+            except Exception:
+                pass
 
     def _compress_worker(self):
         while not self._task_queue.empty():
@@ -402,7 +427,20 @@ class CompressTab:
 
     def _encode_file(self, input_file):
         duration = self._get_duration_seconds(input_file)
-        output_file = str(Path(input_file).with_name(Path(input_file).stem + "_compressed.mkv"))
+        
+        # Create 'edited' subfolder in the same directory as input file
+        input_dir = os.path.dirname(input_file)
+        output_dir = os.path.join(input_dir, "edited")
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # Store output directory for opening later
+        if self._output_dir is None:
+            self._output_dir = output_dir
+        
+        # Get filename without path and create output path without prefix
+        filename = os.path.basename(input_file)
+        name, ext = os.path.splitext(filename)
+        output_file = os.path.join(output_dir, f"{name}.mkv")
 
         mode = self.mode_radio.current.value
         preset_key = self.preset_dropdown.current.value
@@ -498,6 +536,11 @@ class CompressTab:
                             self.progress_text.current.value = self.lang_manager.get_text("idle")
                             self.start_button_ref.current.visible = True
                             self.cancel_button_ref.current.visible = False
+                            # Show open folder button if output directory exists
+                            if self._output_dir and os.path.exists(self._output_dir):
+                                self.open_folder_button_ref.current.visible = True
+                            else:
+                                self.open_folder_button_ref.current.visible = False
                             self.queue_list.current.controls.clear()
                             updated = True
                 except queue.Empty:
