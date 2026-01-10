@@ -240,10 +240,12 @@ class CompressTab:
     
     def _detect_gpu_encoder(self):
         try:
+            creationflags = subprocess.CREATE_NO_WINDOW if platform.system() == "Windows" else 0
             encoders = subprocess.check_output(
                 [get_ffmpeg_path(), "-encoders"],
                 stderr=subprocess.DEVNULL,
                 text=True,
+                creationflags=creationflags,
             )
             if "hevc_nvenc" in encoders:
                 return "hevc_nvenc"
@@ -358,6 +360,7 @@ class CompressTab:
         self.page.update()
     
     def _get_duration_seconds(self, path):
+        creationflags = subprocess.CREATE_NO_WINDOW if platform.system() == "Windows" else 0
         out = subprocess.check_output(
             [
                 get_ffprobe_path(), "-v", "error",
@@ -366,6 +369,7 @@ class CompressTab:
                 path,
             ],
             text=True,
+            creationflags=creationflags,
         )
         return float(out.strip())
 
@@ -382,7 +386,8 @@ class CompressTab:
             elif platform.system() == "Darwin":  # macOS
                 subprocess.Popen(["open", self._output_dir])
             else:  # Linux
-                subprocess.Popen(["xdg-open", self._output_dir])
+                creationflags = subprocess.CREATE_NO_WINDOW if platform.system() == "Windows" else 0
+                subprocess.Popen(["xdg-open", self._output_dir], creationflags=creationflags)
     
     def _start_compress(self, e):
         if self._task_queue.empty():
@@ -481,11 +486,13 @@ class CompressTab:
             output_file,
         ]
 
+        creationflags = subprocess.CREATE_NO_WINDOW if platform.system() == "Windows" else 0
         self._current_process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
             text=True,
+            creationflags=creationflags,
         )
 
         start = time.time()
