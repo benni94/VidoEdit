@@ -8,7 +8,7 @@ VidoEdit is a modern, cross-platform desktop application for converting H.266/VV
 
 ## Download current Releas
 
-https://github.com/benni94/VidoEdit/releases/tag/v1.0.0
+https://github.com/benni94/VidoEdit/releases/tag/v1.1.0
 
 ## Features
 
