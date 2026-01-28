@@ -1,6 +1,6 @@
 # VidoEdit
 
-VidoEdit is a modern, cross-platform desktop application for converting H.266/VVC video files to H.265 (HEVC) or H.264 (AVC), compressing videos, merging episode parts, and batch-renaming files.
+VidoEdit is a modern, cross-platform desktop application for video editing tasks including converting H.266/VVC video files to H.265 (HEVC) or H.264 (AVC), compressing videos with GPU acceleration, managing audio tracks, merging episode parts, and batch-renaming files.
 
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-blue)
 ![Python](https://img.shields.io/badge/python-3.13+-green)
@@ -13,12 +13,16 @@ https://github.com/benni94/VidoEdit/releases/tag/v1.1.0
 ## Features
 
 ✨ **Modern GUI** - Clean, intuitive interface built with Flet  
-🎯 **Batch Processing** - Convert entire folders of videos at once  
+🎯 **Batch Processing** - Process entire folders of videos at once  
 📊 **Real-time Progress** - Visual progress bar and detailed logging  
 🔄 **Multiple Codecs** - Support for H.265 (HEVC) and H.264 (AVC)  
-💾 **Flexible Output** - Replace originals or create new files  
+🎵 **Audio Track Management** - Detect, select, and remove audio tracks from videos  
+🗜️ **GPU-Accelerated Compression** - Fast video compression with NVIDIA/AMD/Intel hardware encoding  
+💾 **Flexible Output** - All processed files saved to 'edited' subfolder  
 🌍 **Cross-platform** - Works on macOS, Windows, and Linux  
-🎨 **Native Dialogs** - Platform-native folder picker dialogs
+🎨 **Native Dialogs** - Platform-native file picker dialogs  
+🔀 **Video Merging** - Combine multiple video parts into one file  
+📝 **Batch Renaming** - Rename multiple files with pattern matching
 
 ## Screenshots
 
@@ -68,26 +72,52 @@ On first run, the application will automatically prompt you to install Flet if i
 
 ## Usage
 
-1. **Select Folder**
+### Compress Tab
 
-   - Click "Durchsuchen" to open a folder picker
-   - Or manually paste the folder path into the text field
-   - On macOS: Right-click folder → Hold Option → "Copy as Pathname"
+Compress videos with GPU-accelerated encoding (HEVC/H.265):
 
-2. **Choose Codec**
+1. Add files or folders to the queue
+2. Select compression mode (CRF or Target Size)
+3. Choose quality preset
+4. Click START to begin processing
 
-   - Select H.265 (HEVC) for better compression
-   - Select H.264 (AVC) for wider compatibility
+### Convert Tab
 
-3. **Optional Settings**
+Convert H.266/VVC videos to H.265 or H.264:
 
-   - Check "Originaldateien ersetzen" to replace original files
-   - Leave unchecked to create new files with codec suffix
+1. Select folder containing videos
+2. Choose output codec (H.265 or H.264)
+3. Optionally replace original files
+4. Click START to begin conversion
 
-4. **Start Conversion**
-   - Click "Start Konvertierung"
-   - Monitor progress in real-time
-   - View detailed logs for each file
+### Audio Tracks Tab
+
+Manage audio tracks in your videos:
+
+1. **Add Files** - Click "Add Files" or "Add Folder" to queue videos
+2. **Detect Tracks** - Click "Detect Audio Tracks" to analyze the first file
+3. **Select Tracks** - Use checkboxes to select which audio tracks to keep
+   - Use "Select/Deselect All" to quickly toggle all tracks
+   - All tracks are selected by default
+4. **Process Queue** - Click "Process All Files in Queue" to apply your selection to all files
+5. **Output** - Processed files are saved to an `edited` subfolder with original filenames
+
+### Merge Videos Tab
+
+Combine multiple video parts into one file:
+
+1. Add video files to merge
+2. Arrange them in the desired order
+3. Click START to merge
+
+### Renamer Tab
+
+Batch rename files with pattern matching:
+
+1. Select folder with files to rename
+2. Configure identifier regex and naming pattern
+3. Preview changes
+4. Apply renaming
 
 ## Supported Formats
 
@@ -117,8 +147,9 @@ VidoEdit/
 ├── main.py                 # Main entry point
 ├── tabs/
 │   ├── __init__.py         # Package exports
-│   ├── convert_tab.py      # H.266 to H.265/H.264 conversion
 │   ├── compress_tab.py     # GPU-accelerated compression
+│   ├── convert_tab.py      # H.266 to H.265/H.264 conversion
+│   ├── audio_tab.py        # Audio track management
 │   ├── merge_tab.py        # Merge episode parts (UI + logic)
 │   └── renamer_tab.py      # Multi-file renamer (UI + logic)
 ├── attachments/
@@ -128,6 +159,9 @@ VidoEdit/
 │   ├── build_linux.sh      # Build Linux AppImage with icon (PNG)
 │   ├── build_windows.ps1   # Build Windows app with icon (.ico)
 │   └── make_ico.py         # Helper: PNG → ICO (Windows)
+├── language_manager.py     # Multi-language support (EN/DE)
+├── translations.py         # Translation strings
+├── ffmpeg_utils.py         # FFmpeg/FFprobe path utilities
 ├── README.md               # This file
 └── requirements.txt        # Python dependencies
 ```
@@ -224,11 +258,14 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Roadmap
 
+- [x] Multi-language support (English/German)
+- [x] Dark/Light theme toggle
+- [x] Audio track management
+- [x] GPU-accelerated compression
+- [x] Batch processing with queue system
 - [ ] Add drag-and-drop support
 - [ ] Support for more input/output formats
 - [ ] Custom FFmpeg parameter configuration
-- [ ] Multi-language support
-- [ ] Dark/Light theme toggle
 - [ ] Conversion presets (quality/speed profiles)
 - [ ] Video preview before conversion
 

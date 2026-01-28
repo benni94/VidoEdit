@@ -8,6 +8,7 @@ TRANSLATIONS = {
         # Tabs
         "tab_convert": "Convert",
         "tab_compress": "Compress",
+        "tab_audio": "Audio Tracks",
         "merge_videos": "Merge Videos",
         "renamer": "Renamer",
         # Common / generic
@@ -93,6 +94,13 @@ TRANSLATIONS = {
         "close": "Close",
         "theme_light": "Light Mode",
         "theme_dark": "Dark Mode",
+        
+        # Audio Tracks Tab
+        "select_file": "Select Video File",
+        "no_file_selected": "No file selected",
+        "audio_tracks_label": "Audio Tracks (select to keep):",
+        "process": "Process",
+        "detect_audio_tracks": "Detect Audio Tracks",
     },
     "de": {
         # Main window
@@ -101,6 +109,7 @@ TRANSLATIONS = {
         # Tabs
         "tab_convert": "Konvertieren",
         "tab_compress": "Komprimieren",
+        "tab_audio": "Audiospuren",
         "merge_videos": "Videos zusammenführen",
         "renamer": "Umbenennen",
         # Common / generic
@@ -186,5 +195,12 @@ TRANSLATIONS = {
         "close": "Schließen",
         "theme_light": "Heller Modus",
         "theme_dark": "Dunkler Modus",
+        
+        # Audio Tracks Tab
+        "select_file": "Videodatei auswählen",
+        "no_file_selected": "Keine Datei ausgewählt",
+        "audio_tracks_label": "Audiospuren (auswählen, um zu behalten):",
+        "process": "Verarbeiten",
+        "detect_audio_tracks": "Audiospuren ermitteln",
     }
 }
