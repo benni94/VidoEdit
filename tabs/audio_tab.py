@@ -28,6 +28,8 @@ class AudioTab:
         # UI Refs
         self.queue_list = ft.Ref[ft.ListView]()
         self.audio_tracks_column = ft.Ref[ft.Column]()
+        self.audio_tracks_row = ft.Ref[ft.Row]()
+        self.audio_tracks_container = ft.Ref[ft.Container]()
         self.progress_bar = ft.Ref[ft.ProgressBar]()
         self.status_text = ft.Ref[ft.Text]()
         self.start_button_ref = ft.Ref[ft.ElevatedButton]()
@@ -101,6 +103,7 @@ class AudioTab:
         )
         
         audio_tracks_container = ft.Container(
+            ref=self.audio_tracks_container,
             content=ft.Column(
                 ref=self.audio_tracks_column,
                 spacing=8,
@@ -112,6 +115,7 @@ class AudioTab:
             padding=15,
             height=300,
             expand=False,
+            visible=False,
         )
         
         progress_section = ft.Column(
@@ -181,7 +185,8 @@ class AudioTab:
                 ),
                 ft.Container(height=10),
                 ft.Row(
-                    [
+                    ref=self.audio_tracks_row,
+                    controls=[
                         ft.Text(
                             self.lang_manager.get_text("audio_tracks_label"),
                             weight=ft.FontWeight.BOLD,
@@ -197,6 +202,7 @@ class AudioTab:
                         ),
                     ],
                     spacing=20,
+                    visible=False,
                 ),
                 audio_tracks_container,
                 ft.Container(height=10),
@@ -311,8 +317,11 @@ class AudioTab:
         self._current_file = None
         self.progress_bar.current.value = 0
         self.status_text.current.value = "Idle"
+        self.start_button_ref.current.visible = True
         self.process_button_ref.current.visible = False
         self.select_all_checkbox.current.visible = False
+        self.audio_tracks_row.current.visible = False
+        self.audio_tracks_container.current.visible = False
         self.page.update()
     
     def _toggle_all_tracks(self, e):
@@ -430,11 +439,13 @@ class AudioTab:
                 self._track_checkboxes[track['index']] = checkbox
                 self.audio_tracks_column.current.controls.append(checkbox)
             
-            # Show process button and select all checkbox
+            # Show process button, select all checkbox, and audio tracks section
             self.process_button_ref.current.text = f"Process All Files in Queue ({self._task_queue.qsize()})"
             self.process_button_ref.current.visible = True
             self.select_all_checkbox.current.visible = True
             self.select_all_checkbox.current.value = True
+            self.audio_tracks_row.current.visible = True
+            self.audio_tracks_container.current.visible = True
         
         self.page.update()
 
