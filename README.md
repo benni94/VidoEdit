@@ -6,9 +6,7 @@ VidoEdit is a modern, cross-platform desktop application for video editing tasks
 ![Python](https://img.shields.io/badge/python-3.13+-green)
 ![License](https://img.shields.io/badge/license-MIT-orange)
 
-## Download current Releas
-
-https://github.com/benni94/VidoEdit/releases/tag/v1.1.0
+### [Download](https://github.com/benni94/VidoEdit/releases/latest) current Releas
 
 ## Features
 
