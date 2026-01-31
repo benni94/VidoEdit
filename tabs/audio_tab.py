@@ -206,7 +206,6 @@ class AudioTab:
         
         self._current_file = file_path
         self.status_text.current.value = f"Detecting audio tracks from: {Path(file_path).name}"
-        self.start_button_ref.current.visible = False
         self.page.update()
         
         # Run detection in background thread
