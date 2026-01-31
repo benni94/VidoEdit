@@ -32,7 +32,7 @@ except ImportError:
         print(f"  {sys.executable} -m pip install flet\n")
         sys.exit(1)
 
-from tabs import ConvertTab, CompressTab, MergeTab, RenamerTab, AudioTab
+from tabs import ConvertTab, CompressTab, MergeTab, RenamerTab, AudioTab, CutTab
 from language_manager import LanguageManager
 from settings_dialog import SettingsDialog
 
@@ -114,6 +114,7 @@ class VidoEditApp:
         self.compress_tab = CompressTab(self.page, self.lang_manager)
         # Add more tabs here in the future:
         self.audio_tab = AudioTab(self.page, self.lang_manager)
+        self.cut_tab = CutTab(self.page, self.lang_manager)
         self.merge_tab = MergeTab(self.page, self.lang_manager)
         self.renamer_tab = RenamerTab(self.page, self.lang_manager)
     
@@ -168,6 +169,11 @@ class VidoEditApp:
                 icon=icons.AUDIOTRACK if icons else "audiotrack",
                 text=self.lang_manager.get_text("tab_audio") if self.show_tab_labels else None,
                 content=self.audio_tab.build()
+            ),
+            ft.Tab(
+                icon=icons.CONTENT_CUT if icons else "content_cut",
+                text=self.lang_manager.get_text("tab_cut") if self.show_tab_labels else None,
+                content=self.cut_tab.build()
             ),
             ft.Tab(
                 icon=icons.MERGE if icons else "merge",
