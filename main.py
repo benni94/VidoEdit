@@ -50,10 +50,12 @@ class VidoEditApp:
         self.lang_manager = LanguageManager()
         self.settings_dialog = SettingsDialog(page, self.lang_manager)
         self.tabs_ref = ft.Ref[ft.Tabs]()
+        self.show_tab_labels = True
         self._setup_page()
         self._init_tabs()
         self._build_ui()
         self.lang_manager.register_callback(self._on_language_change)
+        self.page.on_resized = self._on_window_resize
     
     def _setup_page(self):
         """Configure page settings and theme"""
@@ -147,19 +149,43 @@ class VidoEditApp:
             alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
         )
         
+        # Create tabs with icons
+        tab_list = [
+            ft.Tab(
+                icon=icons.COMPRESS if icons else "compress",
+                text=self.lang_manager.get_text("tab_compress") if self.show_tab_labels else None,
+                content=self.compress_tab.build()
+            ),
+            ft.Tab(
+                icon=icons.TRANSFORM if icons else "transform",
+                text=self.lang_manager.get_text("tab_convert") if self.show_tab_labels else None,
+                content=self.convert_tab.build()
+            ),
+            ft.Tab(
+                icon=icons.AUDIOTRACK if icons else "audiotrack",
+                text=self.lang_manager.get_text("tab_audio") if self.show_tab_labels else None,
+                content=self.audio_tab.build()
+            ),
+            ft.Tab(
+                icon=icons.MERGE if icons else "merge",
+                text=self.lang_manager.get_text("merge_videos") if self.show_tab_labels and hasattr(self.lang_manager, 'get_text') else ("Merge Videos" if self.show_tab_labels else None),
+                content=self.merge_tab.build()
+            ),
+            ft.Tab(
+                icon=icons.DRIVE_FILE_RENAME_OUTLINE if icons else "drive_file_rename_outline",
+                text=self.lang_manager.get_text("renamer") if self.show_tab_labels and hasattr(self.lang_manager, 'get_text') else ("Renamer" if self.show_tab_labels else None),
+                content=self.renamer_tab.build()
+            ),
+        ]
+        
         tabs = ft.Tabs(
             ref=self.tabs_ref,
             selected_index=selected_index,
             animation_duration=250,
             label_color="#ffffff" if is_dark else "#1e1e2e",
             unselected_label_color="#ffffff" if is_dark else "#1e1e2e",
-            tabs=[
-                ft.Tab(text=self.lang_manager.get_text("tab_compress"), content=self.compress_tab.build()),
-                ft.Tab(text=self.lang_manager.get_text("tab_convert"), content=self.convert_tab.build()),
-                ft.Tab(text=self.lang_manager.get_text("tab_audio"), content=self.audio_tab.build()),
-                ft.Tab(text=self.lang_manager.get_text("merge_videos") if hasattr(self.lang_manager, 'get_text') else "Merge Videos", content=self.merge_tab.build()),
-                ft.Tab(text=self.lang_manager.get_text("renamer") if hasattr(self.lang_manager, 'get_text') else "Renamer", content=self.renamer_tab.build()),
-            ],
+            tabs=tab_list,
+            scrollable=True,
             expand=1,
         )
         
@@ -240,6 +266,31 @@ class VidoEditApp:
         self.settings_dialog = SettingsDialog(self.page, self.lang_manager)
         
         self._build_ui(selected_index=current_index)
+    
+    def _on_window_resize(self, e):
+        """Handle window resize to show/hide tab labels"""
+        try:
+            # Get current window width
+            window_width = self.page.window.width or 800
+            
+            # Threshold for showing labels (adjust as needed)
+            # Below 600px width, show only icons
+            should_show_labels = window_width >= 600
+            
+            # Only rebuild if the state changed
+            if should_show_labels != self.show_tab_labels:
+                self.show_tab_labels = should_show_labels
+                current_index = 0
+                try:
+                    if self.tabs_ref.current is not None:
+                        current_index = int(self.tabs_ref.current.selected_index or 0)
+                except Exception:
+                    current_index = 0
+                
+                self.page.controls.clear()
+                self._build_ui(selected_index=current_index)
+        except Exception:
+            pass
 
 
 def main(page: ft.Page):
