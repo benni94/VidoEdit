@@ -61,8 +61,11 @@ class VidoEditApp:
         """Configure page settings and theme"""
         self.page.title = self.lang_manager.get_text("app_title")
         self.page.padding = 20
-        self.page.window.width = 800
-        self.page.window.height = 600
+        
+        # Load saved window size or use defaults
+        saved_width, saved_height = self.lang_manager.get_window_size()
+        self.page.window.width = saved_width
+        self.page.window.height = saved_height
         try:
             # Use app assets for cross-platform icon resolution
             icon_asset = "vidoedit.png"
@@ -268,10 +271,14 @@ class VidoEditApp:
         self._build_ui(selected_index=current_index)
     
     def _on_window_resize(self, e):
-        """Handle window resize to show/hide tab labels"""
+        """Handle window resize to show/hide tab labels and save window size"""
         try:
-            # Get current window width
+            # Get current window width and height
             window_width = self.page.window.width or 800
+            window_height = self.page.window.height or 600
+            
+            # Save window size to config
+            self.lang_manager.set_window_size(window_width, window_height)
             
             # Threshold for showing labels (adjust as needed)
             # Below 600px width, show only icons

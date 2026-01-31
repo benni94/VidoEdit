@@ -95,6 +95,25 @@ class LanguageManager:
         except Exception:
             pass
     
+    def get_window_size(self) -> tuple:
+        """Get saved window size (width, height)"""
+        config = self._load_config()
+        width = config.get('window_width', 800)
+        height = config.get('window_height', 600)
+        return (width, height)
+    
+    def set_window_size(self, width: int, height: int):
+        """Save window size to config"""
+        try:
+            self.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+            config = self._load_config()
+            config['window_width'] = width
+            config['window_height'] = height
+            with open(self.CONFIG_FILE, 'w', encoding='utf-8') as f:
+                json.dump(config, f, indent=2)
+        except Exception:
+            pass
+    
     def get_current_language(self) -> str:
         """Get current language code"""
         return self._current_language
