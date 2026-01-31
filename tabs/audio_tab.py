@@ -10,6 +10,7 @@ from pathlib import Path
 import flet as ft
 from ffmpeg_utils import get_ffmpeg_path, get_ffprobe_path
 from components.file_input_component import FileInputComponent
+from subprocess_utils import get_creation_flags
 
 try:
     from flet import icons
@@ -214,7 +215,6 @@ class AudioTab:
     def _detect_audio_tracks(self, file_path):
         """Detect audio tracks using ffprobe"""
         try:
-            creationflags = subprocess.CREATE_NO_WINDOW if platform.system() == "Windows" else 0
             result = subprocess.run(
                 [
                     get_ffprobe_path(),
@@ -226,7 +226,7 @@ class AudioTab:
                 ],
                 capture_output=True,
                 text=True,
-                creationflags=creationflags,
+                creationflags=get_creation_flags(),
             )
             
             if result.returncode != 0:
@@ -405,13 +405,12 @@ class AudioTab:
             
             cmd.append(output_file)
             
-            creationflags = subprocess.CREATE_NO_WINDOW if platform.system() == "Windows" else 0
             self._current_process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                creationflags=creationflags,
+                creationflags=get_creation_flags(),
             )
             
             # Wait for process to complete

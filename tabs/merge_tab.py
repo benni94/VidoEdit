@@ -7,6 +7,7 @@ import re
 import shlex
 import shutil
 from ffmpeg_utils import get_ffmpeg_path
+from subprocess_utils import get_creation_flags
 
 try:
     from flet import icons
@@ -256,7 +257,7 @@ class MergeTab:
                             output_path = next_available_name(output_path)
                         self._append_preview(self.lang_manager.get_text("merging_file", name=out_basename))
                         cmd = build_ffmpeg_concat_command(inputs, output_path, reencode=True)
-                        proc = subprocess.run(cmd)
+                        proc = subprocess.run(cmd, creationflags=get_creation_flags())
                         if proc.returncode != 0:
                             self._append_preview(self.lang_manager.get_text("ffmpeg_failed"), "#ef4444")
                         self.progress.current.value = idx / max(total, 1)
@@ -280,7 +281,7 @@ class MergeTab:
                                 output_path = next_available_name(output_path)
                             self._append_preview(self.lang_manager.get_text("merging_file", name=os.path.basename(output_path)))
                             cmd = build_ffmpeg_concat_command(inputs, output_path, reencode=True)
-                            proc = subprocess.run(cmd)
+                            proc = subprocess.run(cmd, creationflags=get_creation_flags())
                             if proc.returncode != 0:
                                 self._append_preview(self.lang_manager.get_text("ffmpeg_failed"), "#ef4444")
                             self.progress.current.value = 1

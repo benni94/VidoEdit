@@ -10,6 +10,7 @@ from pathlib import Path
 import flet as ft
 from ffmpeg_utils import get_ffmpeg_path, get_ffprobe_path
 from components.file_input_component import FileInputComponent
+from subprocess_utils import get_creation_flags
 
 try:
     from flet import icons
@@ -210,6 +211,7 @@ class CompressTab:
                 [get_ffmpeg_path(), "-encoders"],
                 stderr=subprocess.DEVNULL,
                 text=True,
+                creationflags=get_creation_flags(),
             )
             if "hevc_nvenc" in encoders:
                 return "hevc_nvenc"
@@ -235,6 +237,7 @@ class CompressTab:
                 path,
             ],
             text=True,
+            creationflags=get_creation_flags(),
         )
         return float(out.strip())
 
@@ -356,6 +359,7 @@ class CompressTab:
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
             text=True,
+            creationflags=get_creation_flags(),
         )
 
         start = time.time()

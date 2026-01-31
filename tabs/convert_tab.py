@@ -10,6 +10,7 @@ from pathlib import Path
 import flet as ft
 from ffmpeg_utils import get_ffmpeg_path, get_ffprobe_path
 from components.file_input_component import FileInputComponent
+from subprocess_utils import get_creation_flags
 
 try:
     from flet import icons
@@ -261,7 +262,7 @@ class ConvertTab:
                 "-of", "default=noprint_wrappers=1:nokey=1",
                 input_file,
             ]
-            result = subprocess.run(cmd, capture_output=True, text=True)
+            result = subprocess.run(cmd, capture_output=True, text=True, creationflags=get_creation_flags())
             if result.returncode == 0 and result.stdout.strip():
                 return float(result.stdout.strip())
         except Exception:
@@ -317,6 +318,7 @@ class ConvertTab:
                 stderr=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 universal_newlines=True,
+                creationflags=get_creation_flags(),
             )
 
             time_pattern = re.compile(r"time=(\d+:\d+:\d+\.\d+)")
