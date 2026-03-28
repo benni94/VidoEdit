@@ -83,6 +83,7 @@ TRANSLATIONS = {
         "compressing": "Compressing... ({percent}%)",
         
         # Presets
+        "preset_fast": "Fast - Prioritizes speed, best for quick turnarounds when quality is secondary.",
         "preset_film": "Film - Balances encoding quality with file size, suited for most films.",
         "preset_anime": "Anime - Optimized for animation, preserving fine lines and details at a higher quality.",
         "preset_4k": "4K - Tailored for 4K videos, allows for a slight reduction in quality to reduce file size.",
@@ -217,6 +218,7 @@ TRANSLATIONS = {
         "compressing": "Komprimiere... ({percent}%)",
         
         # Presets
+        "preset_fast": "Schnell - Priorisiert Geschwindigkeit, ideal für schnelle Ergebnisse, wenn Qualität sekundär ist.",
         "preset_film": "Film - Ausgewogene Kodierungsqualität mit Dateigröße, geeignet für die meisten Filme.",
         "preset_anime": "Anime - Optimiert für Animationen, bewahrt feine Linien und Details in höherer Qualität.",
         "preset_4k": "4K - Zugeschnitten auf 4K-Videos, ermöglicht eine leichte Qualitätsreduzierung zur Verkleinerung der Dateigröße.",

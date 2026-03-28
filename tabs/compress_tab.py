@@ -23,13 +23,6 @@ class CompressTab:
     
     VIDEO_EXTENSIONS = (".mkv", ".mp4", ".avi", ".mov", ".wmv")
     
-    PRESETS = {
-        "Film - Balances encoding quality with file size, suited for most films.": {"crf": 23, "preset": "slow"},
-        "Anime - Optimized for animation, preserving fine lines and details at a higher quality.": {"crf": 20, "preset": "veryslow"},
-        "4K - Tailored for 4K videos, allows for a slight reduction in quality to reduce file size.": {"crf": 22, "preset": "slow"},
-        "Plex - Designed for streaming platforms like Plex, balancing quality with a faster encoding speed.": {"crf": 24, "preset": "medium"},
-    }
-    
     def __init__(self, page: ft.Page, language_manager):
         self.page = page
         self.lang_manager = language_manager
@@ -71,16 +64,18 @@ class CompressTab:
         self._start_ui_poller()
         
         preset_options = [
+            self.lang_manager.get_text("preset_plex"),
+            self.lang_manager.get_text("preset_fast"),
             self.lang_manager.get_text("preset_film"),
             self.lang_manager.get_text("preset_anime"),
             self.lang_manager.get_text("preset_4k"),
-            self.lang_manager.get_text("preset_plex"),
         ]
         preset_mapping = {
+            self.lang_manager.get_text("preset_fast"): {"crf": 26, "preset": "fast"},
+            self.lang_manager.get_text("preset_plex"): {"crf": 24, "preset": "medium"},
             self.lang_manager.get_text("preset_film"): {"crf": 23, "preset": "slow"},
             self.lang_manager.get_text("preset_anime"): {"crf": 20, "preset": "veryslow"},
             self.lang_manager.get_text("preset_4k"): {"crf": 22, "preset": "slow"},
-            self.lang_manager.get_text("preset_plex"): {"crf": 24, "preset": "medium"},
         }
         self._preset_mapping = preset_mapping
         
