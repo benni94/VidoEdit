@@ -199,25 +199,26 @@ class AudioTab:
             self.status_text.current.value = "Queue is empty - add files first"
             self.page.update()
             return
-        
+
         # Get first file from queue to detect audio tracks
         task_queue = self.file_input.get_queue()
         file_path = task_queue.queue[0]  # Peek at first item
-        
+
         self._current_file = file_path
         self.status_text.current.value = f"Detecting audio tracks from: {Path(file_path).name}"
         self.page.update()
-        
+
         # Run detection in background thread
         threading.Thread(target=self._detect_audio_tracks, args=(file_path,), daemon=True).start()
 
     def _detect_audio_tracks(self, file_path):
-        """Detect audio tracks using ffprobe"""
+        """Detect audio tracks using ffprobe with optimized parsing"""
         try:
+            # Use more efficient ffprobe command
             result = subprocess.run(
                 [
                     get_ffprobe_path(),
-                    "-v", "error",
+                    "-v", "quiet",  # Less verbose output
                     "-print_format", "json",
                     "-show_streams",
                     "-select_streams", "a",
@@ -227,36 +228,38 @@ class AudioTab:
                 text=True,
                 creationflags=get_creation_flags(),
             )
-            
+
             if result.returncode != 0:
                 error_msg = result.stderr if result.stderr else "Unknown error"
                 self._ui_queue.put(("error", f"FFprobe failed: {error_msg[:100]}"))
                 return
-            
+
             if not result.stdout.strip():
                 self._ui_queue.put(("error", "FFprobe returned no data"))
                 return
-            
+
             data = json.loads(result.stdout)
             streams = data.get("streams", [])
-            
+
             if not streams:
                 self._ui_queue.put(("error", "No audio tracks found in file"))
                 return
-            
+
+            # Process tracks more efficiently
             self._audio_tracks = []
             for stream in streams:
+                tags = stream.get("tags", {})
                 track_info = {
                     "index": stream.get("index"),
                     "codec": stream.get("codec_name", "unknown"),
                     "channels": stream.get("channels", "unknown"),
-                    "language": stream.get("tags", {}).get("language", "und"),
-                    "title": stream.get("tags", {}).get("title", ""),
+                    "language": tags.get("language", "und"),
+                    "title": tags.get("title", ""),
                 }
                 self._audio_tracks.append(track_info)
-            
+
             self._ui_queue.put(("tracks_loaded", self._audio_tracks))
-            
+
         except Exception as ex:
             self._ui_queue.put(("error", f"Error detecting tracks: {ex}"))
 
@@ -348,22 +351,49 @@ class AudioTab:
         threading.Thread(target=self._process_queue_worker, daemon=True).start()
     
     def _process_queue_worker(self):
-        """Process all files in queue"""
+        """Process all files in queue with parallel processing"""
+        import concurrent.futures
+        import time
+
         task_queue = self.file_input.get_queue()
+        files_to_process = []
+
+        # Collect all files to process
         while not task_queue.empty():
-            if self._cancel_requested:
-                break
-            
-            file_path = task_queue.get()
-            
-            self._ui_queue.put(("processing", Path(file_path).name))
-            
-            try:
-                self._process_single_file(file_path, self._selected_track_indices)
-            except Exception as ex:
-                self._ui_queue.put(("error", f"Error processing {Path(file_path).name}: {ex}"))
-                break
-        
+            files_to_process.append(task_queue.get())
+
+        if not files_to_process:
+            return
+
+        total_files = len(files_to_process)
+        processed_count = 0
+
+        # Use ThreadPoolExecutor for parallel processing (limit to 4 concurrent threads)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(4, total_files)) as executor:
+            # Submit all tasks
+            future_to_file = {
+                executor.submit(self._process_single_file, file_path, self._selected_track_indices): file_path
+                for file_path in files_to_process
+            }
+
+            # Process completed tasks
+            for future in concurrent.futures.as_completed(future_to_file):
+                if self._cancel_requested:
+                    # Cancel remaining tasks
+                    for f in future_to_file:
+                        f.cancel()
+                    break
+
+                file_path = future_to_file[future]
+                processed_count += 1
+
+                try:
+                    future.result()  # This will raise an exception if the task failed
+                    self._ui_queue.put(("file_done", (processed_count, total_files, Path(file_path).name)))
+                except Exception as ex:
+                    self._ui_queue.put(("error", f"Error processing {Path(file_path).name}: {ex}"))
+                    # Continue with other files instead of stopping
+
         if not self._cancel_requested:
             self._ui_queue.put(("all_done",))
         else:
@@ -371,62 +401,75 @@ class AudioTab:
     
 
     def _process_single_file(self, input_file, selected_indices):
-        """Worker thread to process the file"""
+        """Worker thread to process the file with progress tracking"""
         try:
             # Create 'edited' subfolder in the same directory as input file
             input_dir = os.path.dirname(input_file)
             output_dir = os.path.join(input_dir, "edited")
             os.makedirs(output_dir, exist_ok=True)
-            
+
             # Store output directory for opening later
             if self._output_dir is None:
                 self._output_dir = output_dir
-            
+
             # Get filename and create output path
             filename = os.path.basename(input_file)
             output_file = os.path.join(output_dir, filename)
-            
-            # Build FFmpeg command
+
+            # Build FFmpeg command with progress output
             cmd = [get_ffmpeg_path(), "-y", "-i", input_file]
-            
+
             # Map video stream
             cmd.extend(["-map", "0:v"])
-            
+
             # Map selected audio streams
             for index in selected_indices:
                 cmd.extend(["-map", f"0:{index}"])
-            
+
             # Map subtitle streams
             cmd.extend(["-map", "0:s?"])
-            
+
             # Copy all streams without re-encoding
-            cmd.extend(["-c", "copy"])
-            
+            cmd.extend(["-c", "copy", "-progress", "pipe:1", "-nostats"])
+
             cmd.append(output_file)
-            
+
             self._current_process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
                 text=True,
                 creationflags=get_creation_flags(),
             )
-            
-            # Wait for process to complete
-            stdout, stderr = self._current_process.communicate()
-            
+
+            # Get duration for progress calculation
+            duration = self._get_duration_seconds(input_file)
+
+            # Monitor progress
+            for line in self._current_process.stdout:
+                if self._cancel_requested:
+                    self._current_process.kill()
+                    return
+
+                if line.startswith("out_time_ms="):
+                    value = line.split("=", 1)[1].strip()
+                    if value.isdigit():
+                        current_sec = int(value) / 1_000_000
+                        if duration > 0:
+                            progress = min(current_sec / duration, 1.0)
+                            self._ui_queue.put(("file_progress", progress))
+
+            # Wait for completion
+            return_code = self._current_process.wait()
+
             if self._cancel_requested:
-                self._ui_queue.put(("cancelled",))
                 return
-            
-            if self._current_process.returncode == 0:
-                # Success - file already removed from queue by worker loop
-                pass
-            else:
-                raise Exception(f"FFmpeg failed: {stderr[:200]}")
-                
+
+            if return_code != 0:
+                raise Exception(f"FFmpeg failed with return code {return_code}")
+
         except Exception as ex:
-            self._ui_queue.put(("error", f"Error: {ex}"))
+            raise ex  # Re-raise to be caught by caller
 
     def _cancel_process(self, e):
         """Cancel the current process"""
@@ -443,11 +486,30 @@ class AudioTab:
         if self._output_dir and os.path.exists(self._output_dir):
             if platform.system() == "Windows":
                 os.startfile(self._output_dir)
-            elif platform.system() == "Darwin":
+            elif platform.system() == "Darwin":  # macOS
                 subprocess.Popen(["open", self._output_dir])
-            else:
-                creationflags = subprocess.CREATE_NO_WINDOW if platform.system() == "Windows" else 0
-                subprocess.Popen(["xdg-open", self._output_dir], creationflags=creationflags)
+            else:  # Linux
+                subprocess.Popen(["xdg-open", self._output_dir])
+
+    def _get_duration_seconds(self, path):
+        """Get video duration in seconds using ffprobe"""
+        try:
+            result = subprocess.run(
+                [
+                    get_ffprobe_path(), "-v", "error",
+                    "-show_entries", "format=duration",
+                    "-of", "default=noprint_wrappers=1:nokey=1",
+                    path,
+                ],
+                capture_output=True,
+                text=True,
+                creationflags=get_creation_flags(),
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                return float(result.stdout.strip())
+        except Exception:
+            pass
+        return 0.0
 
     def _start_ui_poller(self):
         """Start the UI update poller"""
@@ -465,11 +527,11 @@ class AudioTab:
                         if msg[0] == "tracks_loaded":
                             self._display_audio_tracks(msg[1])
                             updated = True
-                        elif msg[0] == "processing":
-                            self.status_text.current.value = f"Processing: {msg[1]}"
-                            # Update queue list - remove first item
-                            if self.file_input.queue_list.current.controls:
-                                self.file_input.queue_list.current.controls.pop(0)
+                        elif msg[0] == "file_progress":
+                            # Update progress bar with current file progress
+                            # This will be overridden by file completion, but shows real-time progress
+                            progress = msg[1]
+                            self.progress_bar.current.value = progress
                             updated = True
                         elif msg[0] == "all_done":
                             self.status_text.current.value = "All files processed!"
@@ -500,6 +562,6 @@ class AudioTab:
                     except Exception:
                         pass
                 
-                time.sleep(0.1)
+                time.sleep(0.05)  # Faster polling for better responsiveness
         
         threading.Thread(target=poll_loop, daemon=True).start()
