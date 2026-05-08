@@ -465,45 +465,66 @@ class CutTab:
         ).start()
     
     def _process_queue(self, operations):
-        """Process all files in queue with all selected operations"""
+        """Process all files in queue with parallel processing"""
+        import concurrent.futures
+        import time
+
         task_queue = self.file_input.get_queue()
-        total_files = task_queue.qsize()
-        processed = 0
-        
+        files_to_process = []
+
+        # Collect all files to process
         while not task_queue.empty():
-            if self._cancel_requested:
-                break
-            
-            file_path = task_queue.get()
-            processed += 1
-            
-            self.status_text.current.value = self.lang_manager.get_text("cut_processing").format(
-                current=processed,
-                total=total_files,
-                filename=Path(file_path).name
-            )
-            self.progress_bar.current.value = processed / total_files
-            self.page.update()
-            
-            try:
-                self._cut_video(file_path, operations)
-            except Exception as ex:
-                self.status_text.current.value = f"Error: {ex}"
-                self.progress_bar.current.visible = False
-                self.start_button_ref.current.visible = True
-                self.cancel_button_ref.current.visible = False
-                self.page.update()
-                return
-        
+            files_to_process.append(task_queue.get())
+
+        if not files_to_process:
+            return
+
+        total_files = len(files_to_process)
+        processed_count = 0
+
+        # Use ThreadPoolExecutor for parallel processing (limit to 3 concurrent threads for cut operations)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(3, total_files)) as executor:
+            # Submit all tasks
+            future_to_file = {
+                executor.submit(self._cut_video, file_path, operations): file_path
+                for file_path in files_to_process
+            }
+
+            # Process completed tasks
+            for future in concurrent.futures.as_completed(future_to_file):
+                if self._cancel_requested:
+                    # Cancel remaining tasks
+                    for f in future_to_file:
+                        f.cancel()
+                    break
+
+                file_path = future_to_file[future]
+                processed_count += 1
+
+                try:
+                    future.result()  # This will raise an exception if the task failed
+                    self.status_text.current.value = f"Completed {processed_count}/{total_files}: {Path(file_path).name}"
+                    self.progress_bar.current.value = processed_count / total_files
+                    # Update UI less frequently to improve performance
+                    if processed_count % 3 == 0 or processed_count == total_files:
+                        self.page.update()
+                except Exception as ex:
+                    self.status_text.current.value = f"Error processing {Path(file_path).name}: {ex}"
+                    self.progress_bar.current.visible = False
+                    self.start_button_ref.current.visible = True
+                    self.cancel_button_ref.current.visible = False
+                    self.page.update()
+                    return
+
         if not self._cancel_requested:
-            self.status_text.current.value = self.lang_manager.get_text("cut_completed").format(count=processed)
+            self.status_text.current.value = f"All {processed_count} files processed successfully!"
             self.open_folder_button_ref.current.visible = True
         else:
-            self.status_text.current.value = self.lang_manager.get_text("cut_cancelled")
-        
+            self.status_text.current.value = "Cancelled"
+
         # Clear the queue after processing
         self.file_input.queue_list.current.controls.clear()
-        
+
         self.progress_bar.current.visible = False
         self.start_button_ref.current.visible = True
         self.cancel_button_ref.current.visible = False
@@ -561,132 +582,111 @@ class CutTab:
                     pass
     
     def _remove_ranges(self, input_file, output_file, time_ranges):
-        """Remove specified time ranges and keep the rest using FFmpeg complex filter"""
-        
+        """Remove specified time ranges and keep the rest using FFmpeg complex filter with progress tracking"""
+
         # Get video duration first
         duration = self._get_video_duration(input_file)
         if duration is None:
             raise Exception("Could not determine video duration")
-        
+
         # Build segments to keep (inverse of ranges to remove)
         keep_segments = []
         current_time = 0.0
-        
+
         for start_str, end_str in sorted(time_ranges, key=lambda x: self._time_to_seconds(x[0])):
             start_sec = self._time_to_seconds(start_str)
             end_sec = self._time_to_seconds(end_str)
-            
+
             # Add segment before this range
             if current_time < start_sec:
                 keep_segments.append((current_time, start_sec))
-            
+
             current_time = max(current_time, end_sec)
-        
+
         # Add final segment if there's time left
         if current_time < duration:
             keep_segments.append((current_time, duration))
-        
+
         if not keep_segments:
             raise Exception("All video would be removed")
-        
-        # Use FFmpeg concat demuxer for multiple segments
+
+        # Use FFmpeg concat demuxer for multiple segments with progress tracking
         if len(keep_segments) == 1:
-            # Simple case: single segment
+            # Simple case: single segment - most efficient
             start, end = keep_segments[0]
             cmd = [
                 get_ffmpeg_path(),
                 "-y",
                 "-i", input_file,
                 "-ss", str(start),
-                "-to", str(end),
+                "-t", str(end - start),
                 "-c", "copy",
+                "-progress", "pipe:1",
+                "-nostats",
                 output_file
             ]
         else:
-            # Multiple segments: need to extract and concatenate
-            import tempfile
-            temp_files = []
-            concat_file = None
-            
-            try:
-                # Extract each segment
-                output_dir = os.path.dirname(output_file)
-                extension = Path(output_file).suffix
-                base_name = Path(output_file).stem
-                for i, (start, end) in enumerate(keep_segments):
-                    temp_file = os.path.join(output_dir, f"{base_name}_segment_{i}{extension}")
-                    temp_files.append(temp_file)
-                    
-                    cmd = [
-                        get_ffmpeg_path(),
-                        "-y",
-                        "-i", input_file,
-                        "-ss", str(start),
-                        "-to", str(end),
-                        "-c", "copy",
-                        temp_file
-                    ]
-                    
-                    proc = subprocess.Popen(
-                        cmd,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                        text=True,
-                        creationflags=get_creation_flags()
-                    )
-                    proc.communicate()
-                    
-                    if proc.returncode != 0:
-                        raise Exception(f"Failed to extract segment {i + 1}")
-                
-                # Create concat file
-                output_dir = os.path.dirname(output_file)
-                filename = Path(output_file).stem
-                concat_file = os.path.join(output_dir, f"{filename}_concat.txt")
-                with open(concat_file, 'w') as f:
-                    for temp_file in temp_files:
-                        f.write(f"file '{os.path.basename(temp_file)}'\n")
-                
-                # Concatenate segments
-                cmd = [
+            # Multiple segments: use segment extraction + concat (more reliable than complex filter)
+            segment_files = []
+            for i, (start, end) in enumerate(keep_segments):
+                segment_file = f"{output_file}.segment{i}.ts"
+                segment_files.append(segment_file)
+
+                # Extract each segment efficiently
+                segment_cmd = [
                     get_ffmpeg_path(),
-                    "-y",
-                    "-f", "concat",
-                    "-safe", "0",
-                    "-i", concat_file,
+                    "-y", "-hide_banner", "-loglevel", "error",  # Reduce output
+                    "-i", input_file,
+                    "-ss", str(start),
+                    "-t", str(end - start),
                     "-c", "copy",
-                    output_file
+                    "-f", "mpegts",
+                    "-avoid_negative_ts", "make_zero",
+                    segment_file
                 ]
-                
+
                 self._current_process = subprocess.Popen(
-                    cmd,
+                    segment_cmd,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     text=True,
                     creationflags=get_creation_flags()
                 )
-                
                 stdout, stderr = self._current_process.communicate()
-                
+
+                if self._cancel_requested:
+                    # Clean up partial segments
+                    for sf in segment_files:
+                        try:
+                            if os.path.exists(sf):
+                                os.remove(sf)
+                        except:
+                            pass
+                    return
+
                 if self._current_process.returncode != 0:
-                    raise Exception(f"FFmpeg concat failed: {stderr[:200]}")
-            
-            finally:
-                # Clean up temp files
-                for temp_file in temp_files:
-                    try:
-                        if os.path.exists(temp_file):
-                            os.remove(temp_file)
-                    except Exception:
-                        pass
-                if concat_file and os.path.exists(concat_file):
-                    try:
-                        os.remove(concat_file)
-                    except Exception:
-                        pass
-            
-            return
-        
+                    raise Exception(f"FFmpeg segment extraction failed: {stderr[:200]}")
+
+            # Create concat file
+            concat_file = f"{output_file}.concat.txt"
+            with open(concat_file, 'w', encoding='utf-8') as f:
+                for segment_file in segment_files:
+                    f.write(f"file '{segment_file}'\n")
+
+            # Concatenate segments efficiently
+            cmd = [
+                get_ffmpeg_path(),
+                "-y", "-hide_banner", "-loglevel", "error",
+                "-f", "concat",
+                "-safe", "0",
+                "-i", concat_file,
+                "-c", "copy",
+                "-progress", "pipe:1",
+                "-nostats",
+                "-avoid_negative_ts", "make_zero",
+                output_file
+            ]
+
         self._current_process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
@@ -694,27 +694,47 @@ class CutTab:
             text=True,
             creationflags=get_creation_flags()
         )
-        
+
+        # Monitor progress
+        for line in self._current_process.stdout:
+            if self._cancel_requested:
+                self._current_process.kill()
+                return
+
         stdout, stderr = self._current_process.communicate()
-        
+
         if self._cancel_requested:
             return
-        
+
         if self._current_process.returncode != 0:
             raise Exception(f"FFmpeg failed: {stderr[:200]}")
+
+        # Clean up segment files and concat file
+        try:
+            if len(keep_segments) > 1:
+                for i in range(len(keep_segments)):
+                    segment_file = f"{output_file}.segment{i}.ts"
+                    if os.path.exists(segment_file):
+                        os.remove(segment_file)
+                if os.path.exists(concat_file):
+                    os.remove(concat_file)
+        except Exception:
+            pass
     
     def _trim_from_start(self, input_file, output_file, trim_time):
-        """Remove from start until specified time"""
-        
+        """Remove from start until specified time with progress tracking"""
+
         cmd = [
             get_ffmpeg_path(),
             "-y",
             "-i", input_file,
             "-ss", trim_time,
             "-c", "copy",
+            "-progress", "pipe:1",
+            "-nostats",
             output_file
         ]
-        
+
         self._current_process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
@@ -722,72 +742,45 @@ class CutTab:
             text=True,
             creationflags=get_creation_flags()
         )
-        
+
+        # Monitor progress
+        for line in self._current_process.stdout:
+            if self._cancel_requested:
+                self._current_process.kill()
+                return
+
         stdout, stderr = self._current_process.communicate()
-        
+
         if self._cancel_requested:
             return
-        
+
         if self._current_process.returncode != 0:
             raise Exception(f"FFmpeg failed: {stderr[:200]}")
     
     def _trim_from_end(self, input_file, output_file, trim_time):
-        """Remove from end until specified time"""
-        
-        # FFmpeg can't directly use negative offsets with -t, so we need duration
-        # First, try to get duration
+        """Remove from end until specified time with progress tracking"""
+
+        # Get duration efficiently
         duration = self._get_video_duration(input_file)
-        
+
         if duration is not None:
             # Calculate end time (duration - trim_time)
             trim_seconds = self._time_to_seconds(trim_time)
             end_time = max(0, duration - trim_seconds)
-            
+
             cmd = [
                 get_ffmpeg_path(),
                 "-y",
                 "-i", input_file,
                 "-t", str(end_time),
                 "-c", "copy",
+                "-progress", "pipe:1",
+                "-nostats",
                 output_file
             ]
         else:
-            # Fallback: Use two-pass approach with ffmpeg to get duration
-            # First pass: get duration from ffmpeg itself
-            probe_cmd = [
-                get_ffmpeg_path(),
-                "-i", input_file,
-                "-f", "null",
-                "-"
-            ]
-            
-            probe_process = subprocess.Popen(
-                probe_cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                creationflags=get_creation_flags()
-            )
-            
-            _, stderr = probe_process.communicate()
-            
-            # Parse duration from ffmpeg output
-            duration = self._parse_duration_from_ffmpeg(stderr)
-            if duration is None:
-                raise Exception("Could not determine video duration")
-            
-            trim_seconds = self._time_to_seconds(trim_time)
-            end_time = max(0, duration - trim_seconds)
-            
-            cmd = [
-                get_ffmpeg_path(),
-                "-y",
-                "-i", input_file,
-                "-t", str(end_time),
-                "-c", "copy",
-                output_file
-            ]
-        
+            raise Exception("Could not determine video duration")
+
         self._current_process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
@@ -795,21 +788,27 @@ class CutTab:
             text=True,
             creationflags=get_creation_flags()
         )
-        
+
+        # Monitor progress
+        for line in self._current_process.stdout:
+            if self._cancel_requested:
+                self._current_process.kill()
+                return
+
         stdout, stderr = self._current_process.communicate()
-        
+
         if self._cancel_requested:
             return
-        
+
         if self._current_process.returncode != 0:
             raise Exception(f"FFmpeg failed: {stderr[:200]}")
     
     def _get_video_duration(self, input_file):
-        """Get video duration in seconds using ffprobe"""
+        """Get video duration in seconds using ffprobe efficiently"""
         try:
             cmd = [
                 get_ffprobe_path(),
-                "-v", "error",
+                "-v", "quiet",  # Less verbose output
                 "-show_entries", "format=duration",
                 "-of", "default=noprint_wrappers=1:nokey=1",
                 input_file,
@@ -818,12 +817,13 @@ class CutTab:
                 cmd,
                 capture_output=True,
                 text=True,
-                creationflags=get_creation_flags()
+                creationflags=get_creation_flags(),
+                timeout=10  # Add timeout to prevent hanging
             )
             if result.returncode == 0 and result.stdout.strip():
                 return float(result.stdout.strip())
-            else:
-                print(f"ffprobe failed: returncode={result.returncode}, stdout='{result.stdout}', stderr='{result.stderr}'")
+        except subprocess.TimeoutExpired:
+            print(f"ffprobe timeout for {input_file}")
         except Exception as e:
             print(f"Exception in _get_video_duration: {e}")
         return None
