@@ -11,6 +11,7 @@ import flet as ft
 from ffmpeg_utils import get_ffmpeg_path, get_ffprobe_path
 from components.file_input_component import FileInputComponent
 from subprocess_utils import get_creation_flags
+from power_management import execute_power_action
 
 try:
     from flet import icons
@@ -62,7 +63,7 @@ class ConvertTab:
         """Build and return the tab content"""
         self._start_ui_poller()
         
-        add_buttons, queue_container = self.file_input.build()
+        add_buttons, queue_container, power_options_row = self.file_input.build(show_multi_folder=True, show_power_options=True)
 
         codec_row = ft.Row([
             ft.Text(self.lang_manager.get_text("target_codec"), width=120, color=self._c("#1e1e2e", "#cdd6f4")),
@@ -161,6 +162,8 @@ class ConvertTab:
                 ft.Container(height=10),
                 queue_container,
                 ft.Container(height=10),
+                power_options_row,
+                ft.Container(height=10),
                 codec_row,
                 ft.Container(height=10),
                 replace_row,
@@ -240,6 +243,14 @@ class ConvertTab:
                                 self.open_folder_button_ref.current.visible = False
                             self.file_input.queue_list.current.controls.clear()
                             updated = True
+                            
+                            # Execute power action if selected
+                            power_action = self.file_input.get_power_action()
+                            if power_action != "none":
+                                action_text = self.lang_manager.get_text(f"power_{power_action}")
+                                self.progress_text.current.value = self.lang_manager.get_text("power_executing").format(action=action_text)
+                                self.page.update()
+                                threading.Thread(target=execute_power_action, args=(power_action,), daemon=True).start()
                         elif msg[0] == "clear_log":
                             self.log_column.current.controls.clear()
                             updated = True

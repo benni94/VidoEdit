@@ -10,6 +10,7 @@ import flet as ft
 from ffmpeg_utils import get_ffmpeg_path, get_ffprobe_path
 from components.file_input_component import FileInputComponent
 from subprocess_utils import get_creation_flags
+from power_management import execute_power_action
 
 try:
     from flet import icons
@@ -84,7 +85,7 @@ class CutTab:
             color=self._c("#6b7280", "#9ca3af")
         )
         
-        add_buttons, queue_container = self.file_input.build()
+        add_buttons, queue_container, power_options_row = self.file_input.build(show_multi_folder=True, show_power_options=True)
         
         # Mode selection with checkboxes
         mode_selection = ft.Column(
@@ -262,6 +263,8 @@ class CutTab:
                 add_buttons,
                 ft.Container(height=10),
                 queue_container,
+                ft.Container(height=10),
+                power_options_row,
                 ft.Container(height=15),
                 mode_selection,
                 ft.Container(height=10),
@@ -529,6 +532,15 @@ class CutTab:
         self.start_button_ref.current.visible = True
         self.cancel_button_ref.current.visible = False
         self.page.update()
+        
+        # Execute power action if selected and processing completed successfully
+        if not self._cancel_requested:
+            power_action = self.file_input.get_power_action()
+            if power_action != "none":
+                action_text = self.lang_manager.get_text(f"power_{power_action}")
+                self.status_text.current.value = self.lang_manager.get_text("power_executing").format(action=action_text)
+                self.page.update()
+                threading.Thread(target=execute_power_action, args=(power_action,), daemon=True).start()
     
     def _cut_video(self, input_file, operations):
         """Cut video by applying all selected operations in sequence"""

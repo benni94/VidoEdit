@@ -11,6 +11,7 @@ import flet as ft
 from ffmpeg_utils import get_ffmpeg_path, get_ffprobe_path
 from components.file_input_component import FileInputComponent
 from subprocess_utils import get_creation_flags
+from power_management import execute_power_action
 
 try:
     from flet import icons
@@ -84,7 +85,7 @@ class CompressTab:
             ft.Text(self._encoder, color=self._c("#374151", "#a6adc8")),
         ])
 
-        add_buttons, queue_container = self.file_input.build()
+        add_buttons, queue_container, power_options_row = self.file_input.build(show_multi_folder=True, show_power_options=True)
 
         mode_section = ft.Column(
             [
@@ -187,6 +188,8 @@ class CompressTab:
                 add_buttons,
                 ft.Container(height=10),
                 queue_container,
+                ft.Container(height=10),
+                power_options_row,
                 ft.Container(height=10),
                 mode_section,
                 ft.Container(height=10),
@@ -412,6 +415,14 @@ class CompressTab:
                                 self.open_folder_button_ref.current.visible = False
                             self.file_input.queue_list.current.controls.clear()
                             updated = True
+                            
+                            # Execute power action if selected
+                            power_action = self.file_input.get_power_action()
+                            if power_action != "none":
+                                action_text = self.lang_manager.get_text(f"power_{power_action}")
+                                self.status_text.current.value = self.lang_manager.get_text("power_executing").format(action=action_text)
+                                self.page.update()
+                                threading.Thread(target=execute_power_action, args=(power_action,), daemon=True).start()
                 except queue.Empty:
                     pass
 

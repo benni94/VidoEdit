@@ -54,9 +54,18 @@ TRANSLATIONS = {
         # Common buttons
         "add_files": "Add Files",
         "add_folder": "Add Folder",
+        "add_multiple_folders": "Add Multiple Folders",
         "clear_queue": "Clear Queue",
         "start": "START",
         "cancel": "CANCEL",
+        
+        # Power management
+        "after_completion": "After Completion:",
+        "power_none": "Do Nothing",
+        "power_shutdown": "Shutdown Computer",
+        "power_sleep": "Sleep",
+        "power_hibernate": "Hibernate",
+        "power_executing": "Executing: {action}...",
         
         # Convert Tab
         "target_codec": "Target Codec:",
@@ -189,9 +198,18 @@ TRANSLATIONS = {
         # Common buttons
         "add_files": "Dateien hinzufügen",
         "add_folder": "Ordner hinzufügen",
+        "add_multiple_folders": "Mehrere Ordner hinzufügen",
         "clear_queue": "Warteschlange leeren",
         "start": "START",
         "cancel": "ABBRECHEN",
+        
+        # Power management
+        "after_completion": "Nach Abschluss:",
+        "power_none": "Nichts tun",
+        "power_shutdown": "Computer herunterfahren",
+        "power_sleep": "Ruhezustand",
+        "power_hibernate": "Energiesparmodus",
+        "power_executing": "Führe aus: {action}...",
         
         # Convert Tab
         "target_codec": "Zielcodec:",
